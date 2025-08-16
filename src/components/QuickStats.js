@@ -141,7 +141,8 @@ const styles = StyleSheet.create({
   preferencesTitle: {
     fontSize: 16,
     marginBottom: 15,
-    color: '#333',
+    color: '#1F2937',
+    fontWeight: '600',
   },
   preferencesList: {
     gap: 12,
@@ -152,9 +153,10 @@ const styles = StyleSheet.create({
   },
   preferenceText: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     marginLeft: 12,
     flex: 1,
+    lineHeight: 20,
   },
 });
 

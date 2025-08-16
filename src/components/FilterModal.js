@@ -276,11 +276,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 15,
-    color: '#333',
+    color: '#1F2937',
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     marginBottom: 15,
     lineHeight: 20,
   },
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
   preferencesSection: {
     marginTop: 10,
     padding: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
   },
   preferencesChips: {
@@ -310,12 +310,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   preferenceChip: {
-    backgroundColor: '#e8f5e8',
-    borderColor: '#4CAF50',
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
   },
   allergyChip: {
-    backgroundColor: '#ffebee',
-    borderColor: '#F44336',
+    backgroundColor: '#FEF2F2',
+    borderColor: '#DC2626',
   },
   actions: {
     padding: 20,
@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
   },
   resetButton: {
     marginBottom: 15,
-    borderColor: '#666',
+    borderColor: '#6B7280',
   },
   mainActions: {
     flexDirection: 'row',
@@ -332,11 +332,11 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    borderColor: '#666',
+    borderColor: '#6B7280',
   },
   applyButton: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10B981',
   },
 });
 

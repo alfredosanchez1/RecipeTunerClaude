@@ -231,6 +231,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 8,
     lineHeight: 22,
+    color: '#1F2937',
   },
   badges: {
     flexDirection: 'row',
@@ -241,18 +242,19 @@ const styles = StyleSheet.create({
     height: 24,
   },
   adaptedBadge: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10B981',
   },
   dietaryBadge: {
-    backgroundColor: '#2196F3',
+    backgroundColor: '#3B82F6',
   },
   badgeText: {
     fontSize: 12,
     color: '#fff',
+    fontWeight: '600',
   },
   description: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     marginBottom: 15,
     lineHeight: 18,
   },
@@ -266,31 +268,31 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     marginLeft: 8,
   },
   ingredientsPreview: {
     marginBottom: 15,
     padding: 12,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
   },
   ingredientsLabel: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 8,
-    color: '#333',
+    color: '#1F2937',
   },
   ingredientsList: {
     gap: 4,
   },
   ingredientItem: {
     fontSize: 13,
-    color: '#666',
+    color: '#4B5563',
   },
   moreIngredients: {
     fontSize: 13,
-    color: '#999',
+    color: '#6B7280',
     fontStyle: 'italic',
     marginTop: 4,
   },
@@ -301,7 +303,7 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 12,
-    color: '#999',
+    color: '#6B7280',
     marginLeft: 6,
   },
   actions: {

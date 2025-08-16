@@ -118,24 +118,24 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 5,
-    color: '#333',
+    color: '#1F2937',
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     lineHeight: 18,
   },
   suggestionsContainer: {
     marginBottom: 20,
     padding: 15,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
     borderRadius: 8,
   },
   suggestionsLabel: {
     fontSize: 14,
     fontWeight: 'bold',
     marginBottom: 10,
-    color: '#333',
+    color: '#1F2937',
   },
   suggestionItem: {
     flexDirection: 'row',
@@ -144,9 +144,10 @@ const styles = StyleSheet.create({
   },
   suggestionText: {
     fontSize: 13,
-    color: '#666',
+    color: '#4B5563',
     marginLeft: 8,
     flex: 1,
+    lineHeight: 18,
   },
   features: {
     flexDirection: 'row',
@@ -159,12 +160,13 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 12,
-    color: '#666',
+    color: '#4B5563',
     textAlign: 'center',
     marginTop: 5,
+    lineHeight: 16,
   },
   adaptButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10B981',
     paddingVertical: 8,
   },
 });

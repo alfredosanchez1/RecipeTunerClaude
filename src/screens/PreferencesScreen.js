@@ -21,6 +21,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useUser } from '../context/UserContext';
+import { theme } from '../styles/theme';
 
 const PreferencesScreen = ({ navigation }) => {
   const theme = useTheme();
@@ -138,7 +139,7 @@ const PreferencesScreen = ({ navigation }) => {
     }
   };
 
-  const renderChipSection = (title, options, field, icon, color) => (
+  const   renderChipSection = (title, options, field, icon, color) => (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
         <Icon name={icon} size={24} color={color} />
@@ -150,9 +151,13 @@ const PreferencesScreen = ({ navigation }) => {
             key={option}
             selected={formData[field]?.includes(option)}
             onPress={() => handleToggleArray(field, option)}
-            style={styles.chip}
+            style={[
+              styles.chip,
+              formData[field]?.includes(option) && styles.selectedChip
+            ]}
             mode="outlined"
             disabled={!isEditing}
+            textStyle={styles.chipText}
           >
             {option}
           </Chip>
@@ -402,7 +407,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   editButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.secondary,
   },
   editActions: {
     flexDirection: 'row',
@@ -410,11 +415,11 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    borderColor: '#666',
+    borderColor: theme.colors.textMuted,
   },
   saveButton: {
     flex: 1,
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.secondary,
   },
   section: {
     backgroundColor: '#fff',
@@ -432,7 +437,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     marginLeft: 15,
-    color: '#333',
+    color: '#1F2937',
+    fontWeight: '600',
   },
   chipContainer: {
     flexDirection: 'row',
@@ -441,12 +447,25 @@ const styles = StyleSheet.create({
   },
   chip: {
     marginBottom: 10,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.background,
+  },
+  selectedChip: {
+    backgroundColor: theme.colors.primary,
+    borderColor: theme.colors.primary,
+  },
+  chipText: {
+    color: theme.colors.text,
+    fontSize: 14,
+    fontWeight: '500',
   },
   radioItem: {
     paddingVertical: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: theme.colors.background,
+    color: theme.colors.text,
+    borderColor: theme.colors.border,
   },
   divider: {
     marginVertical: 10,
@@ -455,39 +474,41 @@ const styles = StyleSheet.create({
   onboardingCard: {
     margin: 20,
     marginBottom: 15,
-    backgroundColor: '#e8f5e8',
-    borderColor: '#4CAF50',
+    backgroundColor: theme.colors.surfaceAlt,
+    borderColor: theme.colors.secondary,
     elevation: 2,
   },
   onboardingTitle: {
     fontSize: 18,
-    color: '#2E7D32',
+    color: theme.colors.text,
     marginBottom: 10,
+    fontWeight: '600',
   },
   onboardingDescription: {
     fontSize: 14,
-    color: '#388E3C',
+    color: theme.colors.textSecondary,
     marginBottom: 15,
     lineHeight: 20,
   },
   completeButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: theme.colors.secondary,
   },
   tipsCard: {
     margin: 20,
     marginBottom: 30,
-    backgroundColor: '#fff3e0',
-    borderColor: '#FF9800',
+    backgroundColor: theme.colors.surfaceAlt,
+    borderColor: theme.colors.accent,
     elevation: 2,
   },
   tipsTitle: {
     fontSize: 18,
-    color: '#E65100',
+    color: theme.colors.text,
     marginBottom: 10,
+    fontWeight: '600',
   },
   tipsText: {
     fontSize: 14,
-    color: '#F57C00',
+    color: theme.colors.textSecondary,
     lineHeight: 20,
   },
 });

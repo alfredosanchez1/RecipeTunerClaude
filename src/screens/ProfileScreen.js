@@ -289,7 +289,7 @@ const ProfileScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
   },
   profileCard: {
     margin: 20,
@@ -301,7 +301,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   avatar: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10B981',
     marginBottom: 15,
   },
   profileInfo: {
@@ -312,15 +312,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: 5,
     textAlign: 'center',
+    color: '#1F2937',
   },
   userEmail: {
     fontSize: 16,
-    color: '#666',
+    color: '#4B5563',
     marginBottom: 15,
     textAlign: 'center',
+    lineHeight: 22,
   },
   editButton: {
-    borderColor: '#4CAF50',
+    borderColor: '#10B981',
   },
   statsCard: {
     margin: 20,
@@ -330,6 +332,8 @@ const styles = StyleSheet.create({
   statsTitle: {
     fontSize: 18,
     marginBottom: 20,
+    color: '#1F2937',
+    fontWeight: '600',
   },
   statsGrid: {
     flexDirection: 'row',
@@ -343,12 +347,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginTop: 8,
     marginBottom: 4,
-    color: '#333',
+    color: '#1F2937',
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
+    color: '#4B5563',
     textAlign: 'center',
+    lineHeight: 16,
   },
   preferencesCard: {
     margin: 20,
@@ -364,6 +369,8 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     marginBottom: 15,
+    color: '#1F2937',
+    fontWeight: '600',
   },
   preferencesList: {
     gap: 15,
@@ -375,15 +382,16 @@ const styles = StyleSheet.create({
   preferenceLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#333',
+    color: '#1F2937',
     marginLeft: 15,
     marginRight: 10,
     minWidth: 120,
   },
   preferenceValue: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     flex: 1,
+    lineHeight: 20,
   },
   settingsCard: {
     margin: 20,
@@ -397,7 +405,7 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     marginBottom: 10,
-    borderColor: '#F44336',
+    borderColor: '#DC2626',
   },
   deleteButton: {
     borderColor: '#F44336',

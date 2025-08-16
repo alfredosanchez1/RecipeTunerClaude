@@ -520,7 +520,7 @@ const AddRecipeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
@@ -543,8 +543,9 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#4B5563',
     textAlign: 'center',
+    lineHeight: 22,
   },
   section: {
     backgroundColor: '#fff',
@@ -563,8 +564,9 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#666',
+    color: '#4B5563',
     marginBottom: 15,
+    lineHeight: 20,
   },
   input: {
     marginBottom: 10,
@@ -580,7 +582,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   imageText: {
-    color: '#4CAF50',
+    color: '#10B981',
     textAlign: 'center',
     fontWeight: 'bold',
   },
@@ -620,7 +622,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10B981',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 15,
@@ -651,10 +653,10 @@ const styles = StyleSheet.create({
     gap: 15,
   },
   submitButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#10B981',
   },
   cancelButton: {
-    borderColor: '#666',
+    borderColor: '#6B7280',
   },
   divider: {
     marginVertical: 10,

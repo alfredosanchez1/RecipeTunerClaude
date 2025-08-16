@@ -229,7 +229,7 @@ const HomeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
   },
   loadingContainer: {
     flex: 1,
@@ -241,18 +241,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F8FAFC',
   },
   onboardingTitle: {
     fontSize: 24,
     textAlign: 'center',
     marginTop: 20,
     marginBottom: 10,
+    color: '#1F2937',
+    fontWeight: 'bold',
   },
   onboardingText: {
     textAlign: 'center',
     marginBottom: 30,
     fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
   },
   onboardingButton: {
     paddingHorizontal: 30,
@@ -271,10 +275,13 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 24,
     marginBottom: 5,
+    color: '#1F2937',
+    fontWeight: 'bold',
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: '#666',
+    color: '#4B5563',
+    lineHeight: 22,
   },
   quickActions: {
     flexDirection: 'row',
@@ -294,6 +301,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 10,
     marginBottom: 5,
+    color: '#1F2937',
+    fontWeight: '600',
   },
   section: {
     marginBottom: 25,
@@ -307,6 +316,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20,
+    color: '#1F2937',
+    fontWeight: '600',
   },
   recipeCard: {
     width: width * 0.7,
@@ -322,11 +333,14 @@ const styles = StyleSheet.create({
     marginTop: 20,
     marginBottom: 10,
     textAlign: 'center',
+    color: '#1F2937',
+    fontWeight: '600',
   },
   emptyText: {
     textAlign: 'center',
     marginBottom: 30,
-    color: '#666',
+    color: '#4B5563',
+    lineHeight: 22,
   },
   emptyButton: {
     paddingHorizontal: 30,

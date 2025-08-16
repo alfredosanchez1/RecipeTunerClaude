@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#2563EB',
     borderRadius: 2,
   },
   content: {
@@ -287,19 +287,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#1F2937',
     textAlign: 'center',
     marginBottom: 10,
   },
   subtitle: {
     fontSize: 20,
-    color: '#007AFF',
+    color: '#2563EB',
     textAlign: 'center',
     marginBottom: 15,
   },
   description: {
     fontSize: 16,
-    color: '#666',
+    color: '#4B5563',
     textAlign: 'center',
     lineHeight: 24,
     marginBottom: 30,
@@ -318,12 +318,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   optionButtonSelected: {
-    borderColor: '#007AFF',
-    backgroundColor: '#007AFF',
+    borderColor: '#2563EB',
+    backgroundColor: '#2563EB',
   },
   optionText: {
     fontSize: 16,
-    color: '#333',
+    color: '#1F2937',
     textAlign: 'center',
     fontWeight: '500',
   },
@@ -347,14 +347,14 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#666',
+    color: '#4B5563',
     fontWeight: '600',
   },
   nextButton: {
     flex: 2,
     paddingVertical: 15,
     borderRadius: 12,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#2563EB',
     alignItems: 'center',
   },
   nextButtonDisabled: {
