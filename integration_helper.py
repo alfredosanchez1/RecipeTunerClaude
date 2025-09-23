@@ -4,6 +4,7 @@ Funciones auxiliares para conectar con Supabase y gestionar datos de suscripcion
 """
 
 import os
+from datetime import datetime
 from supabase import create_client, Client
 from typing import Dict, Any, Optional
 import logging
@@ -254,3 +255,57 @@ async def log_api_usage(user_id: str, endpoint: str, success: bool, metadata: Di
     except Exception as e:
         logger.error(f"❌ Error registrando uso de API: {e}")
         # No fallar si el logging falla
+
+# ================== FUNCIONES DE INICIALIZACIÓN ==================
+
+def initialize_stripe_integration():
+    """
+    Inicializar la integración de Stripe
+    """
+    logger.info("🍳 RecipeTuner API: Inicializando integración Stripe...")
+
+    # Validar variables de entorno requeridas
+    required_vars = ["STRIPE_SECRET_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+    if missing_vars:
+        logger.error(f"❌ Variables de entorno faltantes: {missing_vars}")
+        return False
+
+    logger.info("✅ Integración Stripe inicializada correctamente")
+    return True
+
+def health_check_enhanced():
+    """
+    Health check mejorado para RecipeTuner API
+    """
+    return {
+        "status": "healthy",
+        "service": "RecipeTuner API",
+        "timestamp": datetime.now().isoformat(),
+        "version": "1.0.0",
+        "integrations": {
+            "stripe": bool(os.getenv("STRIPE_SECRET_KEY")),
+            "supabase": bool(os.getenv("SUPABASE_URL"))
+        }
+    }
+
+def validate_required_env_vars():
+    """
+    Validar que todas las variables de entorno requeridas estén presentes
+    """
+    required_vars = [
+        "STRIPE_SECRET_KEY",
+        "SUPABASE_URL",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "PORT"
+    ]
+
+    missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+    if missing_vars:
+        logger.error(f"❌ Variables de entorno faltantes: {missing_vars}")
+        return False, missing_vars
+
+    logger.info("✅ Todas las variables de entorno requeridas están presentes")
+    return True, []
