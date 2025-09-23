@@ -2,7 +2,7 @@
 export const API_CONFIG = {
   // OpenAI API para adaptación de recetas y OCR
   OPENAI: {
-    API_KEY: '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',
+    API_KEY: process.env.OPENAI_API_KEY || 'TU_OPENAI_API_KEY_AQUI',
     BASE_URL: 'https://api.openai.com/v1',
     MODEL: 'gpt-4o',
     VISION_MODEL: 'gpt-4o',
