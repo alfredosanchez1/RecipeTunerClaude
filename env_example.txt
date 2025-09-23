@@ -1,0 +1,24 @@
+# Variables de entorno requeridas para RecipeTuner API
+# Copiar estas variables a tu configuración en Render
+
+# ================== STRIPE ==================
+STRIPE_SECRET_KEY=sk_live_TU_STRIPE_SECRET_KEY_AQUI
+STRIPE_PUBLISHABLE_KEY=pk_live_TU_STRIPE_PUBLISHABLE_KEY_AQUI
+STRIPE_WEBHOOK_SECRET=whsec_TU_WEBHOOK_SECRET_AQUI
+
+# ================== SUPABASE ==================
+SUPABASE_URL=https://TU_SUPABASE_URL.supabase.co
+SUPABASE_ANON_KEY=TU_SUPABASE_ANON_KEY_AQUI
+SUPABASE_SERVICE_ROLE_KEY=TU_SUPABASE_SERVICE_ROLE_KEY_AQUI
+
+# ================== APP CONFIG ==================
+APP_NAME=recipetuner
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+
+# ================== PRICE IDS ==================
+# Actualizar con los Price IDs reales de tu Stripe Dashboard
+PRICE_MEXICO_MONTHLY=price_1234567890abcdef
+PRICE_MEXICO_YEARLY=price_0987654321fedcba
+PRICE_USA_MONTHLY=price_abcdef1234567890
+PRICE_USA_YEARLY=price_fedcba0987654321
