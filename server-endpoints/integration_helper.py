@@ -290,22 +290,25 @@ def health_check_enhanced():
         }
     }
 
-def validate_required_env_vars():
+def validate_required_env_vars(custom_vars=None):
     """
     Validar que todas las variables de entorno requeridas estén presentes
     """
-    required_vars = [
-        "STRIPE_SECRET_KEY",
-        "SUPABASE_URL",
-        "SUPABASE_SERVICE_ROLE_KEY",
-        "PORT"
-    ]
+    if custom_vars:
+        required_vars = custom_vars
+    else:
+        required_vars = [
+            "STRIPE_SECRET_KEY",
+            "SUPABASE_URL",
+            "SUPABASE_SERVICE_ROLE_KEY",
+            "PORT"
+        ]
 
     missing_vars = [var for var in required_vars if not os.getenv(var)]
 
     if missing_vars:
         logger.error(f"❌ Variables de entorno faltantes: {missing_vars}")
-        return False, missing_vars
+        return missing_vars  # Retornar solo la lista de variables faltantes
 
     logger.info("✅ Todas las variables de entorno requeridas están presentes")
-    return True, []
+    return []  # Retornar lista vacía si todo está bien
