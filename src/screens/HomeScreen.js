@@ -5,7 +5,11 @@ import {
   StyleSheet,
   Dimensions,
   RefreshControl,
+  Alert,
+  BackHandler,
+  TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Card,
   Title,
@@ -19,32 +23,32 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useUser } from '../context/UserContext';
 import { useRecipe } from '../context/RecipeContext';
-import RecipeCard from '../components/RecipeCard';
 import QuickStats from '../components/QuickStats';
-import AIAdaptationCard from '../components/AIAdaptationCard';
+import DatabaseTestComponent from '../components/DatabaseTestComponent';
+import debugSecureStoreDatabase from '../utils/debugRealm';
+import { debugRealmPersistence, testRealPersistence } from '../utils/debugRealmPersistence';
+
 
 const { width } = Dimensions.get('window');
 
 const HomeScreen = ({ navigation }) => {
   const theme = useTheme();
   const { user, preferences, isOnboardingComplete } = useUser();
-  const { recipes, adaptedRecipes, isLoading, getFilteredRecipes } = useRecipe();
+  const { recipes, adaptedRecipes, isLoading, deleteRecipe } = useRecipe();
   const [refreshing, setRefreshing] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
+
+  // Debug SecureStore Database al cargar
+  useEffect(() => {
+    debugSecureStoreDatabase();
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Simular recarga de datos
+    // Ejecutar debug al refrescar también
+    const debugResult = await debugSecureStoreDatabase();
+    setDebugInfo(debugResult);
     setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  const handleQuickAdapt = () => {
-    if (recipes.length > 0) {
-      const randomRecipe = recipes[Math.floor(Math.random() * recipes.length)];
-      navigation.navigate('Recipes', {
-        screen: 'RecipeDetail',
-        params: { recipe: randomRecipe },
-      });
-    }
   };
 
   const handleAddRecipe = () => {
@@ -52,18 +56,118 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const handleViewRecipes = () => {
-    navigation.navigate('Recipes');
+    console.log('🏠 HOME SCREEN - handleViewRecipes called, navigating with filter: original');
+    navigation.navigate('Recipes', { filter: 'original', hideAdaptButton: true });
+  };
+
+  const handleViewAdaptedRecipes = () => {
+    console.log('🏠 HOME SCREEN - handleViewAdaptedRecipes called, navigating to AdaptedRecipeScreen');
+    navigation.navigate('AdaptedRecipeScreen');
   };
 
   const handleViewProfile = () => {
     navigation.navigate('Profile');
   };
 
+  const handleShoppingList = () => {
+    navigation.navigate('ShoppingList');
+  };
+
+  const handleExitApp = () => {
+    Alert.alert(
+      'Salir de la Aplicación',
+      '¿Estás seguro de que quieres salir de RecipeTuner?',
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Salir',
+          style: 'destructive',
+          onPress: () => BackHandler.exitApp(),
+        },
+      ]
+    );
+  };
+
+  const handleTestDatabase = () => {
+    navigation.navigate('DatabaseTest');
+  };
+
+  const handleDebugRecipes = async () => {
+    console.log('🔍 DEBUG - Checking all recipes...');
+    console.log('📊 Total recipes:', recipes.length);
+
+    recipes.forEach((recipe, index) => {
+      console.log(`Recipe ${index + 1}:`);
+      console.log(`  Title: ${recipe.title}`);
+      console.log(`  isAdapted: ${recipe.isAdapted}`);
+      console.log(`  adapted: ${recipe.adapted}`);
+      console.log(`  ID: ${recipe.id}`);
+      console.log('---');
+    });
+
+    Alert.alert(
+      'Debug Recipes',
+      `Total: ${recipes.length}\nAdaptadas: ${recipes.filter(r => r.isAdapted).length}\nOriginales: ${recipes.filter(r => !r.isAdapted).length}\n\nRev logs para detalles`
+    );
+  };
+
+  const handleClearDatabase = async () => {
+    Alert.alert(
+      'Limpiar Base de Datos',
+      '¿Estás seguro? Esto eliminará TODAS las recetas y empezará de cero.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Sí, limpiar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              console.log('🗑️ Iniciando limpieza de base de datos...');
+
+              // Método más simple: eliminar una por una usando el contexto
+              if (recipes && recipes.length > 0) {
+                console.log(`🗑️ Eliminando ${recipes.length} recetas via contexto...`);
+
+                const recipeIds = recipes.map(r => r.id);
+                let deletedCount = 0;
+
+                for (const recipeId of recipeIds) {
+                  try {
+                    await deleteRecipe(recipeId);
+                    deletedCount++;
+                    console.log(`✅ Eliminada receta ${deletedCount}/${recipeIds.length}`);
+                  } catch (err) {
+                    console.error(`❌ Error eliminando receta ${recipeId}:`, err);
+                  }
+                }
+
+                console.log(`✅ Eliminadas ${deletedCount} de ${recipeIds.length} recetas`);
+                Alert.alert('Éxito', `Se eliminaron ${deletedCount} recetas. Pull to refresh para actualizar.`);
+              } else {
+                Alert.alert('Info', 'No hay recetas para eliminar.');
+              }
+
+            } catch (error) {
+              console.error('❌ Error limpiando base de datos:', error);
+              Alert.alert(
+                'Error al limpiar',
+                `Error: ${error.message || error}\n\nDetalles en consola.`
+              );
+            }
+          }
+        }
+      ]
+    );
+  };
+
   if (!isOnboardingComplete) {
     return (
-      <View style={styles.onboardingContainer}>
+      <SafeAreaView style={styles.onboardingContainer}>
         <Icon name="chef-hat" size={80} color={theme.colors.primary} />
-        <Title style={styles.onboardingTitle}>¡Bienvenido a RecipeTunnel Claude!</Title>
+        <Title style={styles.onboardingTitle}>¡Bienvenido a RecipeTuner!</Title>
         <Paragraph style={styles.onboardingText}>
           Personaliza tus recetas con inteligencia artificial según tus necesidades dietéticas
         </Paragraph>
@@ -74,29 +178,56 @@ const HomeScreen = ({ navigation }) => {
         >
           Comenzar Configuración
         </Button>
-      </View>
+        
+        <Button
+          mode="outlined"
+          onPress={async () => {
+            console.log('🧪 INICIANDO TEST DE PERSISTENCIA REAL...');
+            const result = await testRealPersistence();
+            Alert.alert('Test Persistencia Real',
+              `Éxito: ${result.success ? '✅' : '❌'}\n` +
+              `Receta: ${result.recipePersisted ? '✅' : '❌'}\n` +
+              `Preferencias: ${result.prefsPersisted ? '✅' : '❌'}\n` +
+              `Path: ${result.realmPath || 'N/A'}`
+            );
+          }}
+          style={[styles.onboardingButton, { marginTop: 10 }]}
+        >
+          🧪 Test Persistencia Real
+        </Button>
+
+        <Button
+          mode="outlined"
+          onPress={async () => {
+            console.log('🔍 DEBUG REALM PERSISTENCE...');
+            const result = await debugRealmPersistence();
+            Alert.alert('Debug Realm', JSON.stringify(result, null, 2));
+          }}
+          style={[styles.onboardingButton, { marginTop: 5 }]}
+        >
+          🔍 Debug Realm Files
+        </Button>
+      </SafeAreaView>
     );
   }
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text>Cargando...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
-  const recentRecipes = recipes.slice(0, 3);
-  const recentAdapted = adaptedRecipes.slice(0, 2);
-
   return (
-    <ScrollView
-      style={styles.container}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-      }
-    >
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
       {/* Header Section */}
       <View style={styles.header}>
         <View style={styles.headerContent}>
@@ -110,23 +241,25 @@ const HomeScreen = ({ navigation }) => {
         <Icon name="chef-hat" size={50} color={theme.colors.primary} />
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActions}>
-        <Card style={styles.actionCard} onPress={handleAddRecipe}>
-          <Card.Content style={styles.actionContent}>
-            <Icon name="plus-circle" size={40} color="#FF9800" />
-            <Title style={styles.actionTitle}>Nueva Receta</Title>
-            <Paragraph>Agregar receta personal</Paragraph>
-          </Card.Content>
-        </Card>
+      {/* Main Action Buttons - 2 botones principales en la parte superior */}
+      <View style={styles.topActions}>
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleAddRecipe}>
+            <View style={styles.actionContent}>
+              <Icon name="plus-circle" size={40} color="#FF9800" />
+              <Title style={styles.actionTitle}>Nueva Receta</Title>
+              <Paragraph style={styles.actionSubtitle}>Crear receta personal</Paragraph>
+            </View>
+          </TouchableOpacity>
 
-        <Card style={styles.actionCard} onPress={handleQuickAdapt}>
-          <Card.Content style={styles.actionContent}>
-            <Icon name="robot" size={40} color="#4CAF50" />
-            <Title style={styles.actionTitle}>Adaptar con IA</Title>
-            <Paragraph>Adaptar receta existente</Paragraph>
-          </Card.Content>
-        </Card>
+          <TouchableOpacity style={styles.actionCard} onPress={() => navigation.navigate('Profile', { screen: 'Preferences' })}>
+            <View style={styles.actionContent}>
+              <Icon name="cog" size={40} color="#9C27B0" />
+              <Title style={styles.actionTitle}>Mis Preferencias</Title>
+              <Paragraph style={styles.actionSubtitle}>Configurar necesidades</Paragraph>
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Quick Stats */}
@@ -134,76 +267,46 @@ const HomeScreen = ({ navigation }) => {
         totalRecipes={recipes.length}
         adaptedRecipes={adaptedRecipes.length}
         preferences={preferences}
+        onViewRecipes={handleViewRecipes}
+        onViewAdaptedRecipes={handleViewAdaptedRecipes}
       />
 
-      {/* AI Adaptation Card */}
-      <AIAdaptationCard
-        onPress={() => navigation.navigate('Recipes')}
-        preferences={preferences}
-      />
-
-      {/* Recent Recipes */}
-      {recentRecipes.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Title style={styles.sectionTitle}>Recetas Recientes</Title>
-            <Button
-              mode="text"
-              onPress={handleViewRecipes}
-              textColor={theme.colors.primary}
-            >
-              Ver todas
-            </Button>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recentRecipes.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                onPress={() =>
-                  navigation.navigate('Recipes', {
-                    screen: 'RecipeDetail',
-                    params: { recipe },
-                  })
-                }
-                style={styles.recipeCard}
-              />
-            ))}
-          </ScrollView>
-        </View>
+      {/* Debug Info Panel */}
+      {debugInfo && (
+        <Card style={styles.debugCard}>
+          <Card.Content>
+            <Title style={styles.debugTitle}>🔍 Debug Info (Pull to refresh)</Title>
+            <Text style={styles.debugText}>
+              Initialized: {debugInfo.initialized ? '✅' : '❌'}{'\n'}
+              Has existing data: {debugInfo.hasExistingData ? '✅' : '❌'}{'\n'}
+              Save worked: {debugInfo.saveWorked ? '✅' : '❌'}{'\n'}
+              Retrieve worked: {debugInfo.retrieveWorked ? '✅' : '❌'}{'\n'}
+              Data matches: {debugInfo.dataMatches ? '✅' : '❌'}{'\n'}
+              {'\n'}
+              Current preferences:{'\n'}
+              • Dietary: {preferences.dietaryRestrictions?.length || 0} items{'\n'}
+              • Allergies: {preferences.allergies?.length || 0} items{'\n'}
+              • Onboarding: {isOnboardingComplete ? '✅ Complete' : '❌ Pending'}
+            </Text>
+          </Card.Content>
+        </Card>
       )}
 
-      {/* Recent Adaptations */}
-      {recentAdapted.length > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Title style={styles.sectionTitle}>Adaptaciones Recientes</Title>
-            <Button
-              mode="text"
-              onPress={() => navigation.navigate('Recipes')}
-              textColor={theme.colors.primary}
-            >
-              Ver todas
-            </Button>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {recentAdapted.map((recipe) => (
-              <RecipeCard
-                key={recipe.id}
-                recipe={recipe}
-                isAdapted={true}
-                onPress={() =>
-                  navigation.navigate('Recipes', {
-                    screen: 'AdaptedRecipe',
-                    params: { recipe },
-                  })
-                }
-                style={styles.recipeCard}
-              />
-            ))}
-          </ScrollView>
+      {/* Single Action Button - Solo Lista de Compras */}
+      <View style={styles.mainActions}>
+        <View style={styles.actionRow}>
+          <TouchableOpacity style={styles.actionCard} onPress={handleShoppingList}>
+            <View style={styles.actionContent}>
+              <Icon name="cart" size={40} color="#FF5722" />
+              <Title style={styles.actionTitle}>Lista de Compras</Title>
+              <Paragraph style={styles.actionSubtitle}>Gestionar ingredientes</Paragraph>
+            </View>
+          </TouchableOpacity>
         </View>
-      )}
+      </View>
+
+
+      
 
       {/* Empty State */}
       {recipes.length === 0 && (
@@ -222,11 +325,29 @@ const HomeScreen = ({ navigation }) => {
           </Button>
         </View>
       )}
-    </ScrollView>
+
+      {/* Exit App Button */}
+      <View style={styles.exitSection}>
+        <Button
+          mode="outlined"
+          onPress={handleExitApp}
+          icon="exit-to-app"
+          style={styles.exitButton}
+          textColor="#DC2626"
+        >
+          Salir de la Aplicación
+        </Button>
+      </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
   container: {
     flex: 1,
     backgroundColor: '#F8FAFC',
@@ -283,45 +404,55 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     lineHeight: 22,
   },
-  quickActions: {
-    flexDirection: 'row',
+  topActions: {
     paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  mainActions: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  testActions: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  actionRow: {
+    flexDirection: 'row',
     marginBottom: 20,
     gap: 15,
   },
   actionCard: {
     flex: 1,
     elevation: 2,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
   },
   actionContent: {
     alignItems: 'center',
-    padding: 15,
+    padding: 20,
+    minHeight: 100,
+    justifyContent: 'center',
   },
   actionTitle: {
     fontSize: 16,
-    marginTop: 10,
-    marginBottom: 5,
+    marginTop: 12,
+    marginBottom: 6,
     color: '#1F2937',
     fontWeight: '600',
+    textAlign: 'center',
   },
-  section: {
-    marginBottom: 25,
-    paddingHorizontal: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  recipeCard: {
-    width: width * 0.7,
-    marginRight: 15,
+  actionSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   emptyState: {
     alignItems: 'center',
@@ -344,6 +475,34 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     paddingHorizontal: 30,
+  },
+  exitSection: {
+    paddingHorizontal: 20,
+    paddingVertical: 30,
+    marginTop: 20,
+    alignItems: 'center',
+  },
+  exitButton: {
+    borderColor: '#DC2626',
+    borderWidth: 1,
+    minWidth: 200,
+    paddingVertical: 8,
+  },
+  debugCard: {
+    margin: 20,
+    backgroundColor: '#FFF8E1',
+    borderColor: '#FF9800',
+    borderWidth: 1,
+  },
+  debugTitle: {
+    fontSize: 16,
+    color: '#E65100',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#BF360C',
+    fontFamily: 'monospace',
   },
 });
 

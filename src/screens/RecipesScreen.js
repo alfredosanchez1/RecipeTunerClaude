@@ -5,6 +5,7 @@ import {
   StyleSheet,
   RefreshControl,
 } from 'react-native';
+// VERSION 2.0 - FILTRADO IMPLEMENTADO
 import {
   Searchbar,
   Chip,
@@ -12,7 +13,6 @@ import {
   Text,
   useTheme,
   ActivityIndicator,
-  FAB,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -22,14 +22,56 @@ import RecipeCard from '../components/RecipeCard';
 import FilterModal from '../components/FilterModal';
 import EmptyState from '../components/EmptyState';
 
-const RecipesScreen = ({ navigation }) => {
+const RecipesScreen = ({ navigation, route }) => {
   const theme = useTheme();
-  const { recipes, adaptedRecipes, isLoading, searchQuery, filters, searchRecipes, setFilters, clearFilters, getFilteredRecipes } = useRecipe();
+  const { recipes, adaptedRecipes, isLoading } = useRecipe();
   const { preferences } = useUser();
-  
+
   const [refreshing, setRefreshing] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [viewMode, setViewMode] = useState('all'); // 'all', 'original', 'adapted'
+  // Obtener parámetros de navegación
+  const hideAdaptButton = route.params?.hideAdaptButton;
+  const filterParam = route.params?.filter;
+
+  console.log('🏗️ RECIPES SCREEN - Initial setup UPDATED');
+  console.log('📋 route.params:', route.params);
+  console.log('🎯 filterParam:', filterParam);
+
+  // Configurar el filtro inicial directamente basado en los parámetros
+  const getInitialViewMode = () => {
+    if (filterParam === 'adapted') {
+      console.log('✅ Initializing with adapted filter');
+      return 'adapted';
+    } else if (filterParam === 'original') {
+      console.log('✅ Initializing with original filter');
+      return 'original';
+    } else {
+      console.log('⚠️ No filter param, defaulting to original');
+      return 'original';
+    }
+  };
+
+  const [viewMode, setViewMode] = useState(getInitialViewMode());
+
+  // Actualizar viewMode cuando cambien los parámetros de navegación
+  useEffect(() => {
+    const filter = route.params?.filter;
+
+    console.log('🔍 RECIPES SCREEN - useEffect triggered');
+    console.log('📋 route.params:', route.params);
+    console.log('🎯 filter param:', filter);
+
+    if (filter === 'adapted') {
+      console.log('✅ Setting viewMode to adapted');
+      setViewMode('adapted');
+    } else if (filter === 'original') {
+      console.log('✅ Setting viewMode to original');
+      setViewMode('original');
+    } else {
+      console.log('⚠️ No filter param, defaulting to original');
+      setViewMode('original');
+    }
+  }, [route.params]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -37,31 +79,33 @@ const RecipesScreen = ({ navigation }) => {
     setTimeout(() => setRefreshing(false), 1000);
   };
 
+  const [searchQuery, setSearchQuery] = useState('');
+
   const handleSearch = (query) => {
-    searchRecipes(query);
-  };
-
-  const handleFilter = (newFilters) => {
-    setFilters(newFilters);
-    setShowFilters(false);
-  };
-
-  const handleClearFilters = () => {
-    clearFilters();
+    setSearchQuery(query);
   };
 
   const handleRecipePress = (recipe) => {
-    if (recipe.originalRecipeId) {
-      // Es una receta adaptada
-      navigation.navigate('AdaptedRecipe', { recipe });
+    if (recipe.isAdapted) {
+      // Es una receta adaptada - usar RecipeDetail con parámetro especial
+      navigation.push('RecipeDetail', {
+        recipe,
+        isAdapted: true,
+        returnTo: 'Recipes',
+        returnParams: { filter: 'adapted', hideAdaptButton: true }
+      });
     } else {
       // Es una receta original
-      navigation.navigate('RecipeDetail', { recipe });
+      navigation.push('RecipeDetail', {
+        recipe,
+        returnTo: 'Recipes',
+        returnParams: { filter: 'original', hideAdaptButton: true }
+      });
     }
   };
 
   const handleAdaptRecipe = (recipe) => {
-    navigation.navigate('RecipeDetail', { 
+    navigation.push('RecipeDetail', { 
       recipe,
       showAdaptButton: true 
     });
@@ -69,44 +113,74 @@ const RecipesScreen = ({ navigation }) => {
 
   const getDisplayRecipes = () => {
     let displayRecipes = [];
-    
-    switch (viewMode) {
-      case 'original':
-        displayRecipes = recipes;
-        break;
-      case 'adapted':
-        displayRecipes = adaptedRecipes;
-        break;
-      default:
-        displayRecipes = [...recipes, ...adaptedRecipes];
-        break;
+
+    console.log('🧮 getDisplayRecipes called');
+    console.log('📊 Current viewMode:', viewMode);
+    console.log('📝 Total recipes:', recipes.length);
+    console.log('🔄 isAdapted values:', recipes.map(r => r.isAdapted));
+
+    // FORZAR EL FILTRADO CORRECTO
+    // filterParam ya está declarado en el nivel del componente
+    console.log('🎯 FORCE CHECK - filterParam:', filterParam);
+
+    if (filterParam === 'adapted') {
+      // Forzar mostrar solo adaptadas
+      displayRecipes = recipes.filter(recipe => recipe.isAdapted === true);
+      console.log('🔵 FORCED Adapted filter - filtered result:', displayRecipes.length);
+    } else if (filterParam === 'original') {
+      // Forzar mostrar solo originales
+      displayRecipes = recipes.filter(recipe => recipe.isAdapted === false || !recipe.isAdapted);
+      console.log('🟢 FORCED Original filter - filtered result:', displayRecipes.length);
+    } else {
+      // Usar viewMode normal
+      switch (viewMode) {
+        case 'original':
+          displayRecipes = recipes.filter(recipe => !recipe.isAdapted);
+          console.log('🟢 Original filter - filtered result:', displayRecipes.length);
+          break;
+        case 'adapted':
+          displayRecipes = recipes.filter(recipe => recipe.isAdapted);
+          console.log('🔵 Adapted filter - filtered result:', displayRecipes.length);
+          break;
+        default:
+          displayRecipes = recipes; // Todas las recetas
+          console.log('🟡 All filter - showing all:', displayRecipes.length);
+          break;
+      }
     }
 
-    return getFilteredRecipes().filter(recipe => {
-      if (viewMode === 'original') return !recipe.originalRecipeId;
-      if (viewMode === 'adapted') return recipe.originalRecipeId;
-      return true;
-    });
+    // Aplicar filtro de búsqueda si existe
+    if (searchQuery) {
+      displayRecipes = displayRecipes.filter(recipe =>
+        recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        recipe.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      console.log('🔍 Search applied - final result:', displayRecipes.length);
+    }
+
+    console.log('📋 Final recipe titles:', displayRecipes.map(r => r.title));
+    return displayRecipes;
   };
 
   const renderRecipeItem = ({ item }) => (
     <RecipeCard
       recipe={item}
       onPress={() => handleRecipePress(item)}
-      onAdapt={item.originalRecipeId ? undefined : () => handleAdaptRecipe(item)}
-      showAdaptButton={!item.originalRecipeId}
+      onAdapt={undefined}
+      showAdaptButton={false}
+      isAdapted={item.isAdapted}
       style={styles.recipeCard}
     />
   );
 
   const renderEmptyState = () => {
     if (isLoading) return null;
-    
+
     let icon = 'food-off';
     let title = 'No hay recetas';
-    let description = 'Comienza agregando tu primera receta';
-    let actionText = 'Agregar Receta';
-    let onAction = () => navigation.navigate('AddRecipe');
+    let description = 'Aún no tienes recetas guardadas';
+    let actionText = 'Volver al Inicio';
+    let onAction = () => navigation.navigate('Home');
 
     if (viewMode === 'adapted') {
       icon = 'robot-off';
@@ -114,12 +188,12 @@ const RecipesScreen = ({ navigation }) => {
       description = 'Adapta una receta existente con IA para verla aquí';
       actionText = 'Ver Recetas';
       onAction = () => setViewMode('all');
-    } else if (searchQuery || Object.values(filters).some(f => f && f.length > 0)) {
+    } else if (searchQuery) {
       icon = 'filter-off';
       title = 'No se encontraron resultados';
-      description = 'Intenta ajustar los filtros o la búsqueda';
-      actionText = 'Limpiar Filtros';
-      onAction = handleClearFilters;
+      description = 'Intenta ajustar la búsqueda';
+      actionText = 'Limpiar Búsqueda';
+      onAction = () => setSearchQuery('');
     }
 
     return (
@@ -133,8 +207,35 @@ const RecipesScreen = ({ navigation }) => {
     );
   };
 
-  const renderHeader = () => (
+
+  const renderHeader = () => {
+    // INDICADOR VISUAL PARA VERIFICAR FILTRADO
+    // filterParam ya está declarado en el nivel del componente
+    const debugText = filterParam ? `FILTRO: ${filterParam.toUpperCase()}` : 'SIN FILTRO';
+    const displayRecipes = getDisplayRecipes();
+
+    return (
     <View style={styles.header}>
+      {/* INDICADOR DEBUG TEMPORAL */}
+      <View style={{backgroundColor: 'yellow', padding: 10, marginBottom: 10}}>
+        <Text style={{color: 'black', fontWeight: 'bold', textAlign: 'center'}}>
+          🚨 DEBUG: {debugText} - Mostrando: {displayRecipes.length} de {recipes.length} recetas
+        </Text>
+      </View>
+
+      {/* Back Button */}
+      <View style={styles.backButtonContainer}>
+        <Button
+          mode="outlined"
+          onPress={() => navigation.goBack()}
+          icon="arrow-left"
+          style={styles.backButton}
+          compact
+        >
+          Atrás
+        </Button>
+      </View>
+
       {/* Search Bar */}
       <Searchbar
         placeholder="Buscar recetas..."
@@ -144,7 +245,8 @@ const RecipesScreen = ({ navigation }) => {
         iconColor={theme.colors.primary}
       />
 
-      {/* View Mode Tabs */}
+      {/* View Mode Tabs - Ocultos para simplificar UX */}
+      {/*
       <View style={styles.viewModeContainer}>
         <Button
           mode={viewMode === 'all' ? 'contained' : 'outlined'}
@@ -152,7 +254,7 @@ const RecipesScreen = ({ navigation }) => {
           style={styles.viewModeButton}
           compact
         >
-          Todas ({recipes.length + adaptedRecipes.length})
+          Todas ({recipes.length})
         </Button>
         <Button
           mode={viewMode === 'original' ? 'contained' : 'outlined'}
@@ -160,7 +262,7 @@ const RecipesScreen = ({ navigation }) => {
           style={styles.viewModeButton}
           compact
         >
-          Originales ({recipes.length})
+          Originales ({recipes.filter(r => !r.isAdapted).length})
         </Button>
         <Button
           mode={viewMode === 'adapted' ? 'contained' : 'outlined'}
@@ -168,73 +270,24 @@ const RecipesScreen = ({ navigation }) => {
           style={styles.viewModeButton}
           compact
         >
-          Adaptadas ({adaptedRecipes.length})
+          Adaptadas ({recipes.filter(r => r.isAdapted).length})
         </Button>
       </View>
+      */}
 
-      {/* Active Filters */}
-      {(Object.values(filters).some(f => f && f.length > 0) || searchQuery) && (
+      {/* Active Search */}
+      {searchQuery && (
         <View style={styles.activeFilters}>
-          <Text style={styles.filtersLabel}>Filtros activos:</Text>
+          <Text style={styles.filtersLabel}>Búsqueda activa:</Text>
           <View style={styles.filterChips}>
-            {searchQuery && (
-              <Chip
-                icon="magnify"
-                onClose={() => searchRecipes('')}
-                style={styles.filterChip}
-              >
-                "{searchQuery}"
-              </Chip>
-            )}
-            {filters.cuisine && (
-              <Chip
-                icon="flag"
-                onClose={() => setFilters({ cuisine: '' })}
-                style={styles.filterChip}
-              >
-                {filters.cuisine}
-              </Chip>
-            )}
-            {filters.difficulty && (
-              <Chip
-                icon="star"
-                onClose={() => setFilters({ difficulty: '' })}
-                style={styles.filterChip}
-              >
-                {filters.difficulty}
-              </Chip>
-            )}
-            {filters.cookingTime && (
-              <Chip
-                icon="clock"
-                onClose={() => setFilters({ cookingTime: '' })}
-                style={styles.filterChip}
-              >
-                {filters.cookingTime}
-              </Chip>
-            )}
-            {filters.dietaryRestrictions.map((restriction, index) => (
-              <Chip
-                key={index}
-                icon="food-apple"
-                onClose={() => {
-                  const newRestrictions = filters.dietaryRestrictions.filter(r => r !== restriction);
-                  setFilters({ dietaryRestrictions: newRestrictions });
-                }}
-                style={styles.filterChip}
-              >
-                {restriction}
-              </Chip>
-            ))}
+            <Chip
+              icon="magnify"
+              onClose={() => setSearchQuery('')}
+              style={styles.filterChip}
+            >
+              "{searchQuery}"
+            </Chip>
           </View>
-          <Button
-            mode="text"
-            onPress={handleClearFilters}
-            textColor={theme.colors.error}
-            compact
-          >
-            Limpiar todos
-          </Button>
         </View>
       )}
 
@@ -251,6 +304,7 @@ const RecipesScreen = ({ navigation }) => {
       </View>
     </View>
   );
+  };
 
   if (isLoading && !refreshing) {
     return (
@@ -262,6 +316,17 @@ const RecipesScreen = ({ navigation }) => {
   }
 
   const displayRecipes = getDisplayRecipes();
+
+  // INDICADOR VISUAL ADICIONAL
+  // filterParam ya está declarado arriba
+  const adaptedCount = recipes.filter(r => r.isAdapted).length;
+  const originalCount = recipes.filter(r => !r.isAdapted).length;
+
+  // Log final para debugging
+  console.log('🎯 FINAL RENDER - viewMode:', viewMode);
+  console.log('🎯 FINAL RENDER - Total recipes:', recipes.length);
+  console.log('🎯 FINAL RENDER - Displaying:', displayRecipes.length);
+  console.log('🎯 FINAL RENDER - Display titles:', displayRecipes.map(r => `${r.title} (isAdapted: ${r.isAdapted})`));
 
   return (
     <View style={styles.container}>
@@ -278,20 +343,13 @@ const RecipesScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
       />
 
-      {/* FAB for adding new recipe */}
-      <FAB
-        icon="plus"
-        style={styles.fab}
-        onPress={() => navigation.navigate('AddRecipe')}
-        label="Nueva Receta"
-      />
 
       {/* Filter Modal */}
       <FilterModal
         visible={showFilters}
         onDismiss={() => setShowFilters(false)}
-        onApply={handleFilter}
-        currentFilters={filters}
+        onApply={() => setShowFilters(false)}
+        currentFilters={{}}
         userPreferences={preferences}
       />
     </View>
@@ -310,12 +368,19 @@ const styles = StyleSheet.create({
   },
   listContainer: {
     flexGrow: 1,
-    paddingBottom: 100, // Space for FAB
+    paddingBottom: 20,
   },
   header: {
     backgroundColor: '#fff',
     padding: 20,
     paddingBottom: 10,
+  },
+  backButtonContainer: {
+    marginBottom: 15,
+    alignItems: 'flex-start',
+  },
+  backButton: {
+    borderColor: '#4CAF50',
   },
   searchBar: {
     marginBottom: 15,
@@ -356,13 +421,6 @@ const styles = StyleSheet.create({
   recipeCard: {
     marginHorizontal: 20,
     marginBottom: 15,
-  },
-  fab: {
-    position: 'absolute',
-    margin: 16,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#4CAF50',
   },
 });
 

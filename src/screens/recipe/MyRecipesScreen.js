@@ -6,9 +6,14 @@ const MyRecipesScreen = () => {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
 
   const renderRecipeItem = ({ item }) => (
-    <TouchableOpacity 
+    <TouchableOpacity
       style={styles.recipeCard}
-      onPress={() => navigation.navigate('RecipeDetail', { recipeId: item.id })}
+      onPress={() => navigation.navigate('RecipeDetail', {
+        recipe: item,
+        isAdapted: item.isAdapted || false,
+        returnTo: 'MyRecipesScreen',
+        returnParams: {}
+      })}
     >
       <Image source={{ uri: item.image }} style={styles.recipeImage} />
       <View style={styles.recipeInfo}>

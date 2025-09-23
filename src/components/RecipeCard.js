@@ -36,9 +36,9 @@ const RecipeCard = ({
   };
 
   const getCookingTimeIcon = (cookingTime) => {
-    if (cookingTime?.toLowerCase().includes('rápido')) {
+    if (typeof cookingTime === 'string' && cookingTime.toLowerCase().includes('rápido')) {
       return 'lightning-bolt';
-    } else if (cookingTime?.toLowerCase().includes('largo')) {
+    } else if (typeof cookingTime === 'string' && cookingTime.toLowerCase().includes('largo')) {
       return 'clock-outline';
     }
     return 'clock';
@@ -194,7 +194,7 @@ const RecipeCard = ({
             Ver Receta
           </Button>
           
-          {showAdaptButton && onAdapt && (
+          {showAdaptButton && onAdapt && !isAdapted && (
             <Button
               mode="outlined"
               onPress={onAdapt}

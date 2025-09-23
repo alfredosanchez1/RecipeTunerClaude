@@ -1,45 +1,72 @@
 // Tema global para RecipeTunnel Claude
 // Colores optimizados para máxima legibilidad
+import { MD3LightTheme } from 'react-native-paper';
 
 export const theme = {
+  ...MD3LightTheme,
   colors: {
+    ...MD3LightTheme.colors,
     // Colores principales
     primary: '#2563EB',        // Azul más vibrante
-    primaryLight: '#3B82F6',   // Azul claro
-    primaryDark: '#1D4ED8',    // Azul oscuro
-    
+    primaryContainer: '#3B82F6', // Azul claro
+    onPrimary: '#FFFFFF',      // Texto sobre primary
+    onPrimaryContainer: '#1D4ED8', // Texto sobre container
+
     // Colores secundarios
     secondary: '#10B981',      // Verde
-    accent: '#F59E0B',         // Naranja
-    
+    secondaryContainer: '#D1FAE5', // Verde muy claro
+    onSecondary: '#FFFFFF',    // Texto sobre secondary
+    onSecondaryContainer: '#065F46', // Texto sobre container
+
+    // Colores terciarios
+    tertiary: '#F59E0B',       // Naranja
+    tertiaryContainer: '#FEF3C7', // Amarillo muy claro
+    onTertiary: '#FFFFFF',     // Texto sobre tertiary
+    onTertiaryContainer: '#92400E', // Texto sobre container
+
     // Estados
-    success: '#059669',        // Verde éxito
-    warning: '#D97706',        // Naranja advertencia
     error: '#DC2626',          // Rojo error
-    
+    errorContainer: '#FEE2E2', // Rojo muy claro
+    onError: '#FFFFFF',        // Texto sobre error
+    onErrorContainer: '#991B1B', // Texto sobre error container
+
     // Fondos
     background: '#FFFFFF',     // Blanco puro
+    onBackground: '#1F2937',   // Texto sobre fondo
     surface: '#F8FAFC',        // Gris muy claro
-    card: '#FFFFFF',           // Blanco para tarjetas
-    
-    // Textos - COLORES ALTAMENTE LEGIBLES
-    text: '#1F2937',          // Gris muy oscuro (casi negro)
+    onSurface: '#1F2937',      // Texto sobre superficie
+    surfaceVariant: '#F1F5F9', // Gris claro alternativo
+    onSurfaceVariant: '#4B5563', // Texto sobre superficie variante
+
+    // Elevaciones de superficie (requerido para Paper 5.x)
+    elevation: {
+      level0: '#FFFFFF',       // Sin elevación
+      level1: '#F8FAFC',       // Elevación 1
+      level2: '#F1F5F9',       // Elevación 2
+      level3: '#E2E8F0',       // Elevación 3
+      level4: '#CBD5E1',       // Elevación 4
+      level5: '#94A3B8',       // Elevación 5
+    },
+
+    // Bordes
+    outline: '#E5E7EB',        // Gris claro
+    outlineVariant: '#F3F4F6', // Gris muy claro
+
+    // Overlays
+    shadow: '#000000',         // Negro para sombras
+    scrim: '#000000',          // Negro para overlay
+
+    // Colores específicos para la app (mantenemos compatibilidad)
     textSecondary: '#374151',  // Gris oscuro
     textTertiary: '#4B5563',  // Gris medio
     textMuted: '#6B7280',     // Gris medio-claro
-    
-    // Bordes
     border: '#E5E7EB',        // Gris claro
     borderLight: '#F3F4F6',   // Gris muy claro
-    
-    // Colores específicos para la app
     recipeCard: '#FFFFFF',     // Blanco para tarjetas de recetas
     dietaryBadge: '#3B82F6',  // Azul para badges dietéticos
     adaptedBadge: '#10B981',  // Verde para recetas adaptadas
     cameraButton: '#10B981',  // Verde para botón de cámara
     galleryButton: '#6B7280', // Gris para botón de galería
-    
-    // Colores de fondo alternativos
     backgroundAlt: '#F9FAFB', // Gris muy claro alternativo
     surfaceAlt: '#F1F5F9',    // Gris claro alternativo
   },

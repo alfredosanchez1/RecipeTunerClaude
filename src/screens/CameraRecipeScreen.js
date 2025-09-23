@@ -98,17 +98,24 @@ const CameraRecipeScreen = () => {
 
     setIsAnalyzing(true);
     try {
+      console.log('📱 CameraScreen: Iniciando análisis de imagen');
       // Analizar imagen con Google Vision API
       const visionResult = await imageService.analyzeRecipeImage(capturedImage);
+      console.log('📱 CameraScreen: Resultado del análisis:', visionResult);
       setAnalysisResult(visionResult);
 
       // Si se detectó texto, extraer receta con IA
       if (visionResult.text && visionResult.extractedRecipe) {
+        console.log('📱 CameraScreen: Receta ya extraída en visionResult');
         setExtractedRecipe(visionResult.extractedRecipe);
       } else if (visionResult.text) {
+        console.log('📱 CameraScreen: Extrayendo receta del texto detectado');
         // Extraer receta del texto detectado
         const recipe = await imageService.extractRecipeFromText(visionResult.text);
+        console.log('📱 CameraScreen: Receta extraída:', recipe);
         setExtractedRecipe(recipe);
+      } else {
+        console.log('📱 CameraScreen: No se detectó texto en el análisis');
       }
 
       Alert.alert(
@@ -124,51 +131,57 @@ const CameraRecipeScreen = () => {
   };
 
   const saveExtractedRecipe = async () => {
-    if (!extractedRecipe) {
-      Alert.alert('Error', 'No hay receta extraída para guardar.');
+    if (!analysisResult || !analysisResult.text) {
+      Alert.alert('Error', 'No hay texto extraído para procesar.');
       return;
     }
 
     try {
-      const recipeData = {
-        title: extractedRecipe.title,
-        description: extractedRecipe.description || 'Receta extraída de imagen',
-        cuisine: 'General',
-        difficulty: 'Media',
-        cookingTime: '30-60 min',
-        servings: 2,
-        ingredients: extractedRecipe.ingredients.map(ing => ({
-          name: ing.name,
-          amount: ing.amount || 'al gusto',
-        })),
-        instructions: extractedRecipe.instructions,
-        image: capturedImage.uri,
-        dietaryRestrictions: [],
-        source: 'camera',
-        confidence: extractedRecipe.confidence || 0.8,
-      };
+      // Crear receta básica desde el análisis
+      let recipeData;
 
-      await saveRecipe(recipeData);
-      Alert.alert(
-        'Éxito',
-        'Receta guardada exitosamente. Ahora puedes adaptarla con IA según tus preferencias.',
-        [
-          {
-            text: 'Ver Receta',
-            onPress: () => navigation.navigate('Recipes', { screen: 'RecipesList' })
-          },
-          {
-            text: 'Adaptar con IA',
-            onPress: () => {
-              // Navegar a la pantalla de adaptación
-              navigation.navigate('Recipes', { 
-                screen: 'RecipeDetail',
-                params: { recipeId: recipeData.id }
-              });
-            }
-          }
-        ]
-      );
+      if (extractedRecipe) {
+        // Si ya tenemos receta estructurada, usarla
+        recipeData = {
+          title: analysisResult.title || extractedRecipe.title || 'Receta Extraída',
+          description: extractedRecipe.description || 'Receta extraída de imagen',
+          cuisine: 'General',
+          difficulty: 'Media',
+          cookingTime: '30-60 min',
+          servings: 2,
+          ingredients: extractedRecipe.ingredients?.map(ing => ({
+            name: ing.name,
+            amount: ing.amount || 'al gusto',
+          })) || [],
+          instructions: extractedRecipe.instructions || [],
+          image: capturedImage.uri,
+          dietaryRestrictions: [],
+          source: 'camera',
+          confidence: analysisResult.confidence || 0.8,
+        };
+      } else {
+        // Si solo tenemos texto, crear receta básica
+        recipeData = {
+          title: analysisResult.title || 'Receta Extraída',
+          description: 'Receta extraída de imagen con OCR',
+          cuisine: 'General',
+          difficulty: 'Media',
+          cookingTime: '30-60 min',
+          servings: 2,
+          ingredients: [{ name: 'Ver texto extraído para detalles', amount: '' }],
+          instructions: [analysisResult.text],
+          image: capturedImage.uri,
+          dietaryRestrictions: [],
+          source: 'camera',
+          confidence: analysisResult.confidence || 0.8,
+        };
+      }
+
+      // Navegar a la pantalla de solicitud de adaptación
+      navigation.navigate('AdaptationRequest', {
+        recipeData: recipeData,
+        source: 'camera'
+      });
     } catch (error) {
       Alert.alert('Error', 'No se pudo guardar la receta. Inténtalo de nuevo.');
       console.error('Error saving recipe:', error);
@@ -196,13 +209,13 @@ const CameraRecipeScreen = () => {
             <Button mode="outlined" onPress={retakePhoto} style={styles.actionButton}>
               Volver a Tomar
             </Button>
-            <Button 
-              mode="contained" 
+            <Button
+              mode="contained"
               onPress={analyzeImage}
               disabled={isAnalyzing}
               style={styles.actionButton}
             >
-              {isAnalyzing ? 'Analizando...' : 'Analizar con IA'}
+              {isAnalyzing ? 'Convirtiendo...' : 'Pasar a Texto'}
             </Button>
           </View>
         </Card.Content>
@@ -217,7 +230,14 @@ const CameraRecipeScreen = () => {
       <Card style={styles.resultCard}>
         <Card.Content>
           <Title>Resultado del Análisis</Title>
-          
+
+          {analysisResult.title && (
+            <View style={styles.resultSection}>
+              <Paragraph style={styles.sectionTitle}>Título de la Receta:</Paragraph>
+              <Text style={styles.recipeTitle}>{analysisResult.title}</Text>
+            </View>
+          )}
+
           {analysisResult.text && (
             <View style={styles.resultSection}>
               <Paragraph style={styles.sectionTitle}>Texto Detectado:</Paragraph>
@@ -241,66 +261,24 @@ const CameraRecipeScreen = () => {
           <Paragraph style={styles.confidenceText}>
             Confianza: {Math.round(analysisResult.confidence * 100)}%
           </Paragraph>
+
+          {analysisResult.text && (
+            <View style={styles.analysisActions}>
+              <Button
+                mode="contained"
+                onPress={saveExtractedRecipe}
+                style={styles.tuneButton}
+                icon="auto-fix"
+              >
+                Continuar con Tuneado
+              </Button>
+            </View>
+          )}
         </Card.Content>
       </Card>
     );
   };
 
-  const renderExtractedRecipe = () => {
-    if (!extractedRecipe) return null;
-
-    return (
-      <Card style={styles.recipeCard}>
-        <Card.Content>
-          <Title>Receta Extraída</Title>
-          
-          <View style={styles.recipeSection}>
-            <Paragraph style={styles.sectionTitle}>Título:</Paragraph>
-            <Text style={styles.recipeText}>{extractedRecipe.title}</Text>
-          </View>
-
-          {extractedRecipe.description && (
-            <View style={styles.recipeSection}>
-              <Paragraph style={styles.sectionTitle}>Descripción:</Paragraph>
-              <Text style={styles.recipeText}>{extractedRecipe.description}</Text>
-            </View>
-          )}
-
-          {extractedRecipe.ingredients && extractedRecipe.ingredients.length > 0 && (
-            <View style={styles.recipeSection}>
-              <Paragraph style={styles.sectionTitle}>Ingredientes:</Paragraph>
-              {extractedRecipe.ingredients.map((ingredient, index) => (
-                <Text key={index} style={styles.ingredientText}>
-                  • {ingredient.name}: {ingredient.amount}
-                </Text>
-              ))}
-            </View>
-          )}
-
-          {extractedRecipe.instructions && extractedRecipe.instructions.length > 0 && (
-            <View style={styles.recipeSection}>
-              <Paragraph style={styles.sectionTitle}>Instrucciones:</Paragraph>
-              {extractedRecipe.instructions.map((instruction, index) => (
-                <Text key={index} style={styles.instructionText}>
-                  {index + 1}. {instruction}
-                </Text>
-              ))}
-            </View>
-          )}
-
-          <View style={styles.recipeActions}>
-            <Button 
-              mode="contained" 
-              onPress={saveExtractedRecipe}
-              style={styles.saveButton}
-            >
-              Guardar Receta
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-    );
-  };
 
   return (
     <ScrollView style={styles.container}>
@@ -360,7 +338,6 @@ const CameraRecipeScreen = () => {
       )}
 
       {renderAnalysisResult()}
-      {renderExtractedRecipe()}
     </ScrollView>
   );
 };
@@ -461,36 +438,20 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4CAF50',
   },
-  recipeCard: {
-    margin: 20,
-    backgroundColor: '#fff',
+  recipeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#2196F3',
+    backgroundColor: '#f0f8ff',
+    padding: 12,
+    borderRadius: 8,
+    textAlign: 'center',
   },
-  recipeSection: {
-    marginVertical: 10,
-  },
-  recipeText: {
-    fontSize: 16,
-    color: '#333',
-    lineHeight: 22,
-  },
-  ingredientText: {
-    fontSize: 14,
-    color: '#555',
-    marginLeft: 10,
-    marginBottom: 3,
-  },
-  instructionText: {
-    fontSize: 14,
-    color: '#555',
-    marginLeft: 10,
-    marginBottom: 8,
-    lineHeight: 20,
-  },
-  recipeActions: {
+  analysisActions: {
     marginTop: 20,
     alignItems: 'center',
   },
-  saveButton: {
+  tuneButton: {
     backgroundColor: '#2196F3',
     paddingHorizontal: 30,
   },

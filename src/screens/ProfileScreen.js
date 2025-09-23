@@ -237,7 +237,7 @@ const ProfileScreen = ({ navigation }) => {
             title="Acerca de"
             description="Información de la aplicación"
             left={(props) => <List.Icon {...props} icon="information" />}
-            onPress={() => Alert.alert('Acerca de', 'RecipeTunnel Claude v1.0.0')}
+            onPress={() => Alert.alert('Acerca de', 'RecipeTuner v1.0.0')}
           />
         </Card.Content>
       </Card>
@@ -274,7 +274,7 @@ const ProfileScreen = ({ navigation }) => {
         <Card.Content>
           <View style={styles.appInfo}>
             <Icon name="chef-hat" size={40} color={theme.colors.primary} />
-            <Title style={styles.appTitle}>RecipeTunnel Claude</Title>
+            <Title style={styles.appTitle}>RecipeTuner</Title>
             <Paragraph style={styles.appVersion}>Versión 1.0.0</Paragraph>
             <Paragraph style={styles.appDescription}>
               Personaliza tus recetas con inteligencia artificial según tus necesidades dietéticas

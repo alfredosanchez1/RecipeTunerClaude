@@ -31,7 +31,12 @@ const AdaptedRecipeScreen = () => {
   };
 
   const handleRecipePress = (recipe) => {
-    navigation.navigate('RecipeDetail', { recipeId: recipe.id });
+    navigation.push('RecipeDetail', {
+      recipe: recipe,
+      isAdapted: recipe.isAdapted || false,
+      returnTo: 'AdaptedRecipeScreen',
+      returnParams: {}
+    });
   };
 
   const handleAdaptWithAI = (recipe) => {

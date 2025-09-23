@@ -50,9 +50,14 @@ const NutritionDashboardScreen = () => {
       
       <HealthAlertsSection alerts={nutritionData?.alerts} />
       
-      <RecommendationsSection 
+      <RecommendationsSection
         recommendations={nutritionData?.recommendations}
-        onSelectRecipe={(recipeId) => navigation.navigate('RecipeDetail', { recipeId })}
+        onSelectRecipe={(recipe) => navigation.navigate('RecipeDetail', {
+          recipe: recipe,
+          isAdapted: recipe.isAdapted || false,
+          returnTo: 'NutritionDashboard',
+          returnParams: {}
+        })}
       />
     </ScrollView>
   );

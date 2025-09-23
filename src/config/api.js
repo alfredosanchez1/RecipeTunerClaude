@@ -1,10 +1,11 @@
 // Configuración de APIs y servicios externos
 export const API_CONFIG = {
-  // OpenAI API para adaptación de recetas
+  // OpenAI API para adaptación de recetas y OCR
   OPENAI: {
-    API_KEY: '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',
+    API_KEY: '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',
     BASE_URL: 'https://api.openai.com/v1',
-    MODEL: 'gpt-4',
+    MODEL: 'gpt-4o',
+    VISION_MODEL: 'gpt-4o',
     MAX_TOKENS: 2000,
   },
   
@@ -38,7 +39,7 @@ export const API_CONFIG = {
   // Email (usando SendGrid o similar)
   EMAIL: {
     API_KEY: 'TU_API_KEY_AQUI',
-    FROM_EMAIL: 'recetas@recipetunnel.com',
+    FROM_EMAIL: 'recetas@recipetuner.com',
     BASE_URL: 'https://api.sendgrid.com/v3',
   },
   

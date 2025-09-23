@@ -7,7 +7,7 @@ const CustomDrawerContent = (props) => {
     <View style={styles.container}>
       <DrawerContentScrollView {...props}>
         <View style={styles.header}>
-          <Text style={styles.title}>RecipeTunnel</Text>
+          <Text style={styles.title}>RecipeTuner</Text>
         </View>
         <DrawerItemList {...props} />
       </DrawerContentScrollView>

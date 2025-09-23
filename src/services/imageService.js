@@ -132,34 +132,56 @@ class ImageService {
   // Convertir imagen a base64
   async imageToBase64(uri) {
     try {
-      const base64 = await FileSystem.readAsStringAsync(uri, {
+      // Usar método moderno no-deprecated
+      const result = await FileSystem.readAsStringAsync(uri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      return base64;
+      return result;
     } catch (error) {
-      console.error('Error convirtiendo imagen a base64:', error);
-      throw error;
+      // Fallback para desarrollo - usar fetch para convertir a base64
+      try {
+        const response = await fetch(uri);
+        const blob = await response.blob();
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (fallbackError) {
+        console.error('Error convirtiendo imagen a base64:', error);
+        throw error;
+      }
     }
   }
 
   // Analizar imagen de receta con IA
   async analyzeRecipeImage(imageData) {
     try {
+      console.log('🔍 ImageService: Iniciando análisis de imagen');
+
       // Usar Google Vision API para OCR
       const visionResult = await aiService.analyzeRecipeImage(imageData.base64);
-      
+      console.log('🔍 ImageService: Vision result:', visionResult);
+
       // Si se detectó texto, intentar extraer ingredientes e instrucciones
       if (visionResult.text) {
+        console.log('📝 ImageService: Texto detectado, extrayendo receta...');
         const extractedRecipe = await this.extractRecipeFromText(visionResult.text);
+        console.log('📝 ImageService: Receta extraída:', extractedRecipe);
         return {
           ...visionResult,
           extractedRecipe,
         };
       }
-      
+
+      console.log('⚠️ ImageService: No se detectó texto en la imagen');
       return visionResult;
     } catch (error) {
-      console.error('Error analizando imagen de receta:', error);
+      console.error('❌ Error analizando imagen de receta:', error);
       throw error;
     }
   }

@@ -5,6 +5,7 @@ import { useTheme } from 'react-native-paper';
 import { Avatar } from 'react-native-paper';
 
 import HomeScreen from '../screens/HomeScreen';
+import DatabaseTestScreen from '../screens/DatabaseTestScreen';
 import RecipesScreen from '../screens/RecipesScreen';
 import AddRecipeScreen from '../screens/AddRecipeScreen';
 import CameraRecipeScreen from '../screens/CameraRecipeScreen';
@@ -13,9 +14,55 @@ import AdaptedRecipeScreen from '../screens/AdaptedRecipeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
+import ImportRecipeScreen from '../screens/recipe/ImportRecipeScreen';
+import ConvertToPDFScreen from '../screens/recipe/ConvertToPDFScreen';
+import ImportFileScreen from '../screens/ImportFileScreen';
+import PasteRecipeScreen from '../screens/PasteRecipeScreen';
+import AdaptationRequestScreen from '../screens/AdaptationRequestScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
+
+const HomeStack = () => (
+  <Stack.Navigator
+    screenOptions={{
+      headerStyle: {
+        backgroundColor: '#4CAF50',
+      },
+      headerTintColor: '#fff',
+      headerTitleStyle: {
+        fontWeight: 'bold',
+      },
+    }}
+  >
+    <Stack.Screen
+      name="HomeMain"
+      component={HomeScreen}
+      options={{ title: 'Inicio', headerShown: false }}
+    />
+    <Stack.Screen
+      name="DatabaseTest"
+      component={DatabaseTestScreen}
+      options={{ title: 'Test de Base de Datos' }}
+    />
+    <Stack.Screen
+      name="AdaptedRecipeScreen"
+      component={AdaptedRecipeScreen}
+      options={{ title: 'Recetas Adaptadas' }}
+    />
+    <Stack.Screen
+      name="RecipeDetail"
+      component={RecipeDetailScreen}
+      options={{ title: 'Detalle de Receta' }}
+    />
+    <Stack.Screen
+      name="Recipes"
+      component={RecipesScreen}
+      options={{ title: 'Mis Recetas' }}
+    />
+  </Stack.Navigator>
+);
 
 const RecipesStack = () => (
   <Stack.Navigator
@@ -69,6 +116,31 @@ const AddRecipeStack = () => (
       component={CameraRecipeScreen}
       options={{ title: 'Capturar con Cámara' }}
     />
+    <Stack.Screen
+      name="ImportRecipe"
+      component={ImportRecipeScreen}
+      options={{ title: 'Importar Receta' }}
+    />
+    <Stack.Screen
+      name="ConvertToPDF"
+      component={ConvertToPDFScreen}
+      options={{ title: 'Convertir a PDF' }}
+    />
+    <Stack.Screen
+      name="ImportFile"
+      component={ImportFileScreen}
+      options={{ title: 'Importar Archivo' }}
+    />
+    <Stack.Screen
+      name="PasteRecipe"
+      component={PasteRecipeScreen}
+      options={{ title: 'Enviar desde Memoria' }}
+    />
+    <Stack.Screen
+      name="AdaptationRequest"
+      component={AdaptationRequestScreen}
+      options={{ title: 'Adaptar Receta' }}
+    />
   </Stack.Navigator>
 );
 
@@ -114,6 +186,8 @@ const MainNavigator = () => {
             iconName = focused ? 'plus-circle' : 'plus-circle-outline';
           } else if (route.name === 'Profile') {
             iconName = focused ? 'account' : 'account-outline';
+          } else if (route.name === 'Settings') {
+            iconName = focused ? 'cog' : 'cog-outline';
           }
 
           return <Avatar.Icon size={size} icon={iconName} style={{ backgroundColor: 'transparent' }} />;
@@ -133,7 +207,7 @@ const MainNavigator = () => {
     >
       <Tab.Screen 
         name="Home" 
-        component={HomeScreen}
+        component={HomeStack}
         options={{ title: 'Inicio' }}
       />
       <Tab.Screen 
@@ -150,6 +224,11 @@ const MainNavigator = () => {
         name="Profile" 
         component={ProfileStack}
         options={{ title: 'Perfil' }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{ title: 'Ajustes' }}
       />
     </Tab.Navigator>
   );

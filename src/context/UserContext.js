@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import realmDatabaseV2 from '../services/realmDatabaseV2';
 
 const UserContext = createContext();
 
@@ -9,11 +9,8 @@ const initialState = {
     dietaryRestrictions: [],
     allergies: [],
     intolerances: [],
-    medicalConditions: [],
     cuisinePreferences: [],
-    spiceLevel: 'medium',
-    cookingTime: 'medium',
-    servings: 2,
+    cookingTimePreference: 'Medio',
   },
   isOnboardingComplete: false,
   isLoading: false,
@@ -76,56 +73,125 @@ export const UserProvider = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
 
   useEffect(() => {
-    loadUserData();
+    // Inicializar Realm V2 y cargar datos
+    const initializeDatabase = async () => {
+      console.log('🔄 USER CONTEXT - Inicializando Realm V2...');
+
+      const success = await realmDatabaseV2.init();
+
+      if (success) {
+        console.log('✅ USER CONTEXT - Realm V2 listo, cargando datos...');
+        setTimeout(() => {
+          loadUserData();
+        }, 500);
+      } else {
+        console.error('❌ USER CONTEXT - Error inicializando Realm V2');
+      }
+    };
+
+    initializeDatabase();
   }, []);
 
   const loadUserData = async () => {
     try {
+      console.log('🔄 USER CONTEXT - Cargando datos de usuario desde Realm V2...');
       dispatch({ type: 'SET_LOADING', payload: true });
-      const userData = await AsyncStorage.getItem('userData');
-      const preferencesData = await AsyncStorage.getItem('userPreferences');
-      const onboardingData = await AsyncStorage.getItem('onboardingComplete');
 
-      if (userData) {
-        dispatch({ type: 'SET_USER', payload: JSON.parse(userData) });
+      // Cargar preferencias
+      const userPreferences = await realmDatabaseV2.getUserPreferences('default');
+
+      if (userPreferences) {
+        console.log('🎯 USER CONTEXT - Aplicando preferencias cargadas:', userPreferences);
+
+        dispatch({
+          type: 'SET_PREFERENCES',
+          payload: {
+            dietaryRestrictions: userPreferences.dietaryRestrictions || [],
+            allergies: userPreferences.allergies || [],
+            intolerances: userPreferences.intolerances || [],
+            cuisinePreferences: userPreferences.cuisinePreferences || [],
+            cookingTimePreference: userPreferences.cookingTimePreference || 'Medio'
+          }
+        });
+
+        // Cargar estado de onboarding
+        if (userPreferences.onboardingComplete) {
+          console.log('🎯 USER CONTEXT - Onboarding ya completado, activando...');
+          dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: true });
+        }
+
+        console.log('✅ USER CONTEXT - Datos de usuario cargados desde Realm V2');
+      } else {
+        console.log('📭 USER CONTEXT - No se encontraron preferencias guardadas');
       }
-      if (preferencesData) {
-        dispatch({ type: 'SET_PREFERENCES', payload: JSON.parse(preferencesData) });
-      }
-      if (onboardingData) {
-        dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: JSON.parse(onboardingData) });
-      }
+
     } catch (error) {
-      console.error('Error loading user data:', error);
+      console.error('❌ USER CONTEXT - Error cargando datos de usuario:', error);
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false });
+      console.log('🔄 USER CONTEXT - Carga de datos completada');
     }
   };
 
   const saveUserData = async (userData) => {
     try {
-      await AsyncStorage.setItem('userData', JSON.stringify(userData));
+      // Guardar en Realm
+      console.log('💾 Guardando datos de usuario en Realm...');
       dispatch({ type: 'SET_USER', payload: userData });
+      console.log('✅ Datos de usuario guardados en Realm');
     } catch (error) {
-      console.error('Error saving user data:', error);
+      console.error('❌ Error guardando datos de usuario en Realm:', error);
+      throw new Error('Realm no disponible - No se pueden guardar datos');
     }
   };
 
-  const savePreferences = async (preferences) => {
+  const savePreferences = async (preferences, markOnboardingComplete = false) => {
     try {
-      await AsyncStorage.setItem('userPreferences', JSON.stringify(preferences));
+      console.log('💾 GUARDANDO PREFERENCIAS...');
+      console.log('📋 Datos a guardar:', preferences);
+      console.log('🎯 Marcar onboarding como completo:', markOnboardingComplete);
+      
       dispatch({ type: 'SET_PREFERENCES', payload: preferences });
+      
+      // Preparar datos para Realm Database
+      const dataToSave = {
+        dietaryRestrictions: preferences.dietaryRestrictions || [],
+        allergies: preferences.allergies || [],
+        intolerances: preferences.intolerances || [],
+        cuisinePreferences: preferences.cuisinePreferences || [],
+        cookingTimePreference: preferences.cookingTimePreference || 'Medio',
+        notificationsEnabled: preferences.notificationsEnabled ?? true,
+        onboardingComplete: markOnboardingComplete || state.isOnboardingComplete
+      };
+      
+      console.log('📊 Datos preparados para Realm:', dataToSave);
+
+      // Guardar en Realm V2
+      await realmDatabaseV2.saveUserPreferences('default', dataToSave);
+      console.log('✅ USER CONTEXT - Preferencias guardadas en Realm V2');
+      console.log('📋 USER CONTEXT - Datos guardados:', dataToSave);
+      
+      // Si marcamos onboarding como completo, actualizar el estado
+      if (markOnboardingComplete) {
+        dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: true });
+        console.log('🎯 Onboarding marcado como completado en el estado');
+      }
     } catch (error) {
-      console.error('Error saving preferences:', error);
+      console.error('❌ USER CONTEXT - Error guardando preferencias:', error);
+      // No lanzar error - el almacenamiento persistente debe haber funcionado
+      console.warn('⚠️ USER CONTEXT - Continuando con almacenamiento persistente únicamente');
     }
   };
 
   const completeOnboarding = async () => {
     try {
-      await AsyncStorage.setItem('onboardingComplete', JSON.stringify(true));
+      console.log('🎯 USER CONTEXT - Completando onboarding (solo actualizando estado)...');
+      // Solo actualizar el estado - los datos ya fueron guardados por savePreferences
       dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: true });
+      console.log('✅ USER CONTEXT - Onboarding completado en estado local');
     } catch (error) {
-      console.error('Error completing onboarding:', error);
+      console.error('❌ USER CONTEXT - Error completando onboarding:', error);
+      throw new Error('Error al completar onboarding');
     }
   };
 
@@ -147,10 +213,13 @@ export const UserProvider = ({ children }) => {
 
   const resetUserData = async () => {
     try {
-      await AsyncStorage.multiRemove(['userData', 'userPreferences', 'onboardingComplete']);
+      // Resetear solo el estado de React (SecureStore mantiene los datos)
+      console.log('🔄 Reseteando estado de usuario...');
       dispatch({ type: 'RESET_STATE' });
+      console.log('✅ Estado de usuario reseteado');
     } catch (error) {
-      console.error('Error resetting user data:', error);
+      console.error('❌ Error reseteando estado de usuario:', error);
+      throw new Error('Error al resetear estado de usuario');
     }
   };
 

@@ -1,0 +1,24 @@
+# Variables de entorno requeridas para CaloriasAPI
+# Copiar estas variables a tu configuración en Render
+
+# ================== STRIPE ==================
+STRIPE_SECRET_KEY=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
+STRIPE_PUBLISHABLE_KEY=pk_live_51RnpLnRbKyoDfUk2NgluRiZWu29rBZ0q71bs6l93fHpJ0TWnDrxb61wKd5aEHtggcM339cU7NEgPHNNpAC1jTDGb00wiWF9jTK
+STRIPE_WEBHOOK_SECRET=whsec_VALOR_A_CONFIGURAR_EN_STRIPE_DASHBOARD
+
+# ================== SUPABASE ==================
+SUPABASE_URL=https://ipuqtmdljfirpbaxvygd.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwdXF0bWRsamZpcnBiYXh2eWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4ODU3NjYsImV4cCI6MjA1NzQ2MTc2Nn0.3KeN7qCquVbW5FUWrgDFvgXCx8NvAlftwI7uKY9kaXE
+SUPABASE_SERVICE_ROLE_KEY=VALOR_A_CONFIGURAR
+
+# ================== APP CONFIG ==================
+APP_NAME=recipetuner
+ENVIRONMENT=production
+LOG_LEVEL=INFO
+
+# ================== PRICE IDS ==================
+# Actualizar con los Price IDs reales de tu Stripe Dashboard
+PRICE_MEXICO_MONTHLY=price_1234567890abcdef
+PRICE_MEXICO_YEARLY=price_0987654321fedcba
+PRICE_USA_MONTHLY=price_abcdef1234567890
+PRICE_USA_YEARLY=price_fedcba0987654321

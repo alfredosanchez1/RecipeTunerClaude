@@ -30,7 +30,7 @@ const OnboardingScreen = () => {
 
   const steps = [
     {
-      title: '¡Bienvenido a RecipeTunnel!',
+      title: '¡Bienvenido a RecipeTuner!',
       subtitle: 'Vamos a personalizar tu experiencia culinaria',
       description: 'Te ayudaremos a configurar tus preferencias para que la IA pueda adaptar recetas perfectamente a tus necesidades.',
       icon: '👋',

@@ -1,53 +1,40 @@
 {
   "expo": {
-    "name": "RecipeTunnel Claude",
+    "name": "RecipeTuner",
     "slug": "recipe-tunnel-claude",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "splash": {
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "sdkVersion": "54.0.0",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.recipetunnel.claude"
+      "bundleIdentifier": "com.recipetuner.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta app necesita acceso a la cámara para escanear recetas de imágenes y extractar texto con IA",
+        "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a la galería para seleccionar imágenes de recetas",
+        "NSCalendarsUsageDescription": "Esta app necesita acceso a Recordatorios para exportar listas de ingredientes e instrucciones de cocina",
+        "NSRemindersUsageDescription": "Esta app permite exportar ingredientes e instrucciones de recetas a la app de Recordatorios para mayor comodidad"
+      }
     },
     "android": {
-      "package": "com.recipetunnel.claude",
+      "package": "com.recipetuner.app",
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.POST_NOTIFICATIONS",
-        "android.permission.INTERNET",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       [
-        "expo-image-picker",
-        {
-          "photosPermission": "La aplicación necesita acceso a tu galería para seleccionar imágenes de recetas.",
-          "cameraPermission": "La aplicación necesita acceso a tu cámara para tomar fotos de recetas."
-        }
-      ],
-      [
         "expo-camera",
         {
-          "cameraPermission": "La aplicación necesita acceso a tu cámara para capturar fotos de recetas."
+          "cameraPermission": "Permite a la app usar la cámara para escanear recetas.",
+          "microphonePermission": false
         }
       ],
       [
-        "expo-notifications",
+        "expo-image-picker",
         {
-          "color": "#4CAF50"
+          "photosPermission": "La app accede a fotos para importar recetas desde la galería."
         }
       ]
     ],

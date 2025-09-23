@@ -85,7 +85,7 @@ export const PERMISSION_HELP_MESSAGES = {
     title: 'Permiso de Cámara',
     message: 'La cámara es necesaria para capturar fotos de recetas. Sin este permiso, no podrás usar la funcionalidad de captura de fotos.',
     steps: [
-      'Ve a Configuración > Aplicaciones > RecipeTunnel Claude',
+      'Ve a Configuración > Aplicaciones > RecipeTuner',
       'Toca "Permisos"',
       'Activa "Cámara"'
     ]
@@ -94,7 +94,7 @@ export const PERMISSION_HELP_MESSAGES = {
     title: 'Permiso de Galería',
     message: 'El acceso a la galería te permite seleccionar imágenes existentes de recetas.',
     steps: [
-      'Ve a Configuración > Aplicaciones > RecipeTunnel Claude',
+      'Ve a Configuración > Aplicaciones > RecipeTuner',
       'Toca "Permisos"',
       'Activa "Almacenamiento"'
     ]
@@ -103,7 +103,7 @@ export const PERMISSION_HELP_MESSAGES = {
     title: 'Permiso de Notificaciones',
     message: 'Las notificaciones te alertan sobre nuevas recetas recibidas y adaptaciones completadas.',
     steps: [
-      'Ve a Configuración > Aplicaciones > RecipeTunnel Claude',
+      'Ve a Configuración > Aplicaciones > RecipeTuner',
       'Toca "Notificaciones"',
       'Activa "Permitir notificaciones"'
     ]

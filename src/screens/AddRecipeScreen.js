@@ -17,6 +17,7 @@ import {
   Divider,
   HelperText,
   ActivityIndicator,
+  Card,
 } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -45,6 +46,7 @@ const AddRecipeScreen = ({ navigation }) => {
 
   const [errors, setErrors] = useState({});
   const [showImagePicker, setShowImagePicker] = useState(false);
+  const [showMainOptions, setShowMainOptions] = useState(true);
 
   const cuisineOptions = [
     'Mexicana', 'Italiana', 'China', 'Japonesa', 'India', 'Francesa',
@@ -106,13 +108,55 @@ const AddRecipeScreen = ({ navigation }) => {
     }
   };
 
-  const toggleDietaryRestriction = (restriction) => {
+  const handleDietaryRestrictionToggle = (restriction) => {
     setFormData(prev => ({
       ...prev,
       dietaryRestrictions: prev.dietaryRestrictions.includes(restriction)
         ? prev.dietaryRestrictions.filter(r => r !== restriction)
         : [...prev.dietaryRestrictions, restriction]
     }));
+  };
+
+  const handleImagePick = (imageUri) => {
+    setFormData(prev => ({ ...prev, image: imageUri }));
+    setShowImagePicker(false);
+  };
+
+  const handleImportFromWeb = () => {
+    navigation.navigate('ImportRecipe');
+  };
+
+  const handleScanWithCamera = () => {
+    navigation.navigate('CameraRecipe');
+  };
+
+  const handleImportFile = () => {
+    navigation.navigate('ImportFile');
+  };
+
+  const handlePasteFromMemory = () => {
+    navigation.navigate('PasteRecipe');
+  };
+
+  const handleCreateManual = () => {
+    setShowMainOptions(false);
+  };
+
+  const handleBackToOptions = () => {
+    setShowMainOptions(true);
+    setFormData({
+      title: '',
+      description: '',
+      cuisine: '',
+      difficulty: '',
+      cookingTime: '',
+      servings: '',
+      ingredients: [{ name: '', amount: '', unit: '' }],
+      instructions: [''],
+      dietaryRestrictions: [],
+      image: null,
+    });
+    setErrors({});
   };
 
   const validateForm = () => {
@@ -211,11 +255,6 @@ const AddRecipeScreen = ({ navigation }) => {
     }
   };
 
-  const handleImagePick = (imageUri) => {
-    setFormData(prev => ({ ...prev, image: imageUri }));
-    setShowImagePicker(false);
-  };
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -225,6 +264,76 @@ const AddRecipeScreen = ({ navigation }) => {
     );
   }
 
+  // Mostrar opciones principales
+  if (showMainOptions) {
+    return (
+      <View style={styles.container}>
+        <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <View style={styles.header}>
+            <Icon name="plus-circle" size={50} color={theme.colors.primary} />
+            <Title style={styles.headerTitle}>Nueva Receta</Title>
+            <Text style={styles.headerSubtitle}>
+              Elige cómo quieres agregar tu receta
+            </Text>
+          </View>
+
+          <View style={styles.optionsContainer}>
+            <Card style={styles.optionCard} onPress={handleImportFromWeb}>
+              <Card.Content style={styles.optionContent}>
+                <Icon name="web" size={50} color="#4F46E5" />
+                <Title style={styles.optionTitle}>Importar desde Web</Title>
+                <Text style={styles.optionDescription}>
+                  Busca y importa recetas desde sitios web de cocina
+                </Text>
+              </Card.Content>
+            </Card>
+
+                      <Card style={styles.optionCard} onPress={handleScanWithCamera}>
+            <Card.Content style={styles.optionContent}>
+              <Icon name="camera" size={50} color="#2196F3" />
+              <Title style={styles.optionTitle}>Escanear con Cámara</Title>
+              <Text style={styles.optionDescription}>
+                Captura una o varias fotos de una receta impresa o escrita
+              </Text>
+            </Card.Content>
+          </Card>
+
+            <Card style={styles.optionCard} onPress={handleImportFile}>
+              <Card.Content style={styles.optionContent}>
+                <Icon name="file-document" size={50} color="#4CAF50" />
+                <Title style={styles.optionTitle}>Importar Archivo</Title>
+                <Text style={styles.optionDescription}>
+                  Procesar archivos .txt, .pdf o .docx con IA
+                </Text>
+              </Card.Content>
+            </Card>
+
+            <Card style={styles.optionCard} onPress={handlePasteFromMemory}>
+              <Card.Content style={styles.optionContent}>
+                <Icon name="content-paste" size={50} color="#9C27B0" />
+                <Title style={styles.optionTitle}>Enviar desde Memoria</Title>
+                <Text style={styles.optionDescription}>
+                  Pega texto copiado desde cualquier lugar
+                </Text>
+              </Card.Content>
+            </Card>
+          </View>
+
+          <View style={styles.backButton}>
+            <Button
+              mode="outlined"
+              onPress={() => navigation.goBack()}
+              icon="arrow-left"
+            >
+              Volver
+            </Button>
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
+  // Mostrar formulario manual
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -232,11 +341,23 @@ const AddRecipeScreen = ({ navigation }) => {
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
-          <Icon name="plus-circle" size={50} color={theme.colors.primary} />
-          <Title style={styles.headerTitle}>Nueva Receta</Title>
+          <Icon name="pencil" size={50} color={theme.colors.primary} />
+          <Title style={styles.headerTitle}>Crear Receta Manual</Title>
           <Text style={styles.headerSubtitle}>
             Completa los detalles de tu receta
           </Text>
+        </View>
+
+        {/* Botón para volver a las opciones */}
+        <View style={styles.backToOptions}>
+          <Button
+            mode="text"
+            onPress={handleBackToOptions}
+            icon="arrow-left"
+            textColor={theme.colors.primary}
+          >
+            Cambiar método
+          </Button>
         </View>
 
         {/* Información Básica */}
@@ -310,10 +431,9 @@ const AddRecipeScreen = ({ navigation }) => {
             <View style={styles.halfInput}>
               <TextInput
                 label="Porciones *"
-                value={formData.servings.toString()}
+                value={formData.servings}
                 onChangeText={(value) => handleInputChange('servings', value)}
                 style={styles.input}
-                keyboardType="numeric"
                 error={!!errors.servings}
               />
               <HelperText type="error" visible={!!errors.servings}>
@@ -323,72 +443,33 @@ const AddRecipeScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <Divider style={styles.divider} />
-
-        {/* Imagen */}
-        <View style={styles.section}>
-          <Title style={styles.sectionTitle}>Imagen de la Receta</Title>
-          <View style={styles.imageButtons}>
-            <Button
-              mode="outlined"
-              onPress={() => setShowImagePicker(true)}
-              icon="image"
-              style={[styles.imageButton, styles.halfButton]}
-            >
-              {formData.image ? 'Cambiar Imagen' : 'Seleccionar Imagen'}
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={() => navigation.navigate('CameraRecipe')}
-              icon="camera"
-              style={[styles.imageButton, styles.halfButton]}
-            >
-              Capturar con Cámara
-            </Button>
-          </View>
-          {formData.image && (
-            <Text style={styles.imageText}>Imagen seleccionada ✓</Text>
-          )}
-        </View>
-
-        <Divider style={styles.divider} />
-
         {/* Ingredientes */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Title style={styles.sectionTitle}>Ingredientes *</Title>
-            <Button
-              mode="text"
-              onPress={addIngredient}
-              icon="plus"
-              compact
-            >
-              Agregar
-            </Button>
-          </View>
-          
+          <Title style={styles.sectionTitle}>Ingredientes</Title>
           {formData.ingredients.map((ingredient, index) => (
             <View key={index} style={styles.ingredientRow}>
               <View style={styles.ingredientInputs}>
                 <TextInput
-                  label="Ingrediente"
+                  label="Nombre del ingrediente"
                   value={ingredient.name}
                   onChangeText={(value) => handleIngredientChange(index, 'name', value)}
                   style={[styles.input, styles.ingredientName]}
-                  error={!!errors.ingredients?.[index]}
                 />
-                <TextInput
-                  label="Cantidad"
-                  value={ingredient.amount}
-                  onChangeText={(value) => handleIngredientChange(index, 'amount', value)}
-                  style={[styles.input, styles.ingredientAmount]}
-                />
-                <TextInput
-                  label="Unidad"
-                  value={ingredient.unit}
-                  onChangeText={(value) => handleIngredientChange(index, 'unit', value)}
-                  style={[styles.input, styles.ingredientUnit]}
-                />
+                <View style={styles.amountRow}>
+                  <TextInput
+                    label="Cantidad"
+                    value={ingredient.amount}
+                    onChangeText={(value) => handleIngredientChange(index, 'amount', value)}
+                    style={[styles.input, styles.amountInput]}
+                    keyboardType="numeric"
+                  />
+                  <TextInput
+                    label="Unidad"
+                    value={ingredient.unit}
+                    onChangeText={(value) => handleIngredientChange(index, 'unit', value)}
+                    style={[styles.input, styles.unitInput]}
+                  />
+                </View>
               </View>
               {formData.ingredients.length > 1 && (
                 <Button
@@ -396,50 +477,37 @@ const AddRecipeScreen = ({ navigation }) => {
                   onPress={() => removeIngredient(index)}
                   icon="delete"
                   textColor={theme.colors.error}
-                  compact
+                  style={styles.removeButton}
                 >
                   Eliminar
                 </Button>
               )}
             </View>
           ))}
-          {errors.ingredients && (
-            <HelperText type="error" visible={true}>
-              Completa todos los ingredientes
-            </HelperText>
-          )}
+          <Button
+            mode="outlined"
+            onPress={addIngredient}
+            icon="plus"
+            style={styles.addButton}
+          >
+            Agregar Ingrediente
+          </Button>
         </View>
-
-        <Divider style={styles.divider} />
 
         {/* Instrucciones */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Title style={styles.sectionTitle}>Instrucciones *</Title>
-            <Button
-              mode="text"
-              onPress={addInstruction}
-              icon="plus"
-              compact
-            >
-              Agregar
-            </Button>
-          </View>
-          
+          <Title style={styles.sectionTitle}>Instrucciones</Title>
           {formData.instructions.map((instruction, index) => (
             <View key={index} style={styles.instructionRow}>
-              <View style={styles.instructionNumber}>
-                <Text style={styles.stepNumber}>{index + 1}</Text>
-              </View>
-              <View style={styles.instructionContent}>
+              <Text style={styles.stepNumber}>Paso {index + 1}</Text>
+              <View style={styles.instructionInputRow}>
                 <TextInput
-                  label={`Paso ${index + 1}`}
+                  label="Instrucción"
                   value={instruction}
                   onChangeText={(value) => handleInstructionChange(index, value)}
-                  style={styles.input}
+                  style={[styles.input, styles.instructionInput]}
                   multiline
-                  numberOfLines={2}
-                  error={!!errors.instructions?.[index]}
+                  numberOfLines={3}
                 />
                 {formData.instructions.length > 1 && (
                   <Button
@@ -447,7 +515,6 @@ const AddRecipeScreen = ({ navigation }) => {
                     onPress={() => removeInstruction(index)}
                     icon="delete"
                     textColor={theme.colors.error}
-                    compact
                     style={styles.removeButton}
                   >
                     Eliminar
@@ -456,34 +523,41 @@ const AddRecipeScreen = ({ navigation }) => {
               </View>
             </View>
           ))}
-          {errors.instructions && (
-            <HelperText type="error" visible={true}>
-              Completa todas las instrucciones
-            </HelperText>
-          )}
+          <Button
+            mode="outlined"
+            onPress={addInstruction}
+            icon="plus"
+            style={styles.addButton}
+          >
+            Agregar Paso
+          </Button>
         </View>
-
-        <Divider style={styles.divider} />
 
         {/* Restricciones Dietéticas */}
         <View style={styles.section}>
           <Title style={styles.sectionTitle}>Restricciones Dietéticas</Title>
-          <Text style={styles.sectionDescription}>
-            Selecciona las opciones que aplican a tu receta
-          </Text>
           <View style={styles.chipContainer}>
-            {dietaryRestrictionOptions.map((option) => (
+            {dietaryRestrictionOptions.map((restriction) => (
               <Chip
-                key={option}
-                selected={formData.dietaryRestrictions.includes(option)}
-                onPress={() => toggleDietaryRestriction(option)}
+                key={restriction}
+                selected={formData.dietaryRestrictions.includes(restriction)}
+                onPress={() => handleDietaryRestrictionToggle(restriction)}
                 style={styles.chip}
                 mode="outlined"
               >
-                {option}
+                {restriction}
               </Chip>
             ))}
           </View>
+        </View>
+
+        {/* Imagen */}
+        <View style={styles.section}>
+          <Title style={styles.sectionTitle}>Imagen de la Receta</Title>
+          <ImagePickerComponent
+            onImagePicked={handleImagePick}
+            currentImage={formData.image}
+          />
         </View>
 
         {/* Botones de Acción */}
@@ -494,25 +568,10 @@ const AddRecipeScreen = ({ navigation }) => {
             style={styles.submitButton}
             disabled={isLoading}
           >
-            Guardar Receta
-          </Button>
-          
-          <Button
-            mode="outlined"
-            onPress={() => navigation.goBack()}
-            style={styles.cancelButton}
-          >
-            Cancelar
+            {isLoading ? 'Guardando...' : 'Guardar Receta'}
           </Button>
         </View>
       </ScrollView>
-
-      {/* Image Picker Modal */}
-      <ImagePickerComponent
-        visible={showImagePicker}
-        onDismiss={() => setShowImagePicker(false)}
-        onImagePicked={handleImagePick}
-      />
     </KeyboardAvoidingView>
   );
 };
@@ -520,12 +579,7 @@ const AddRecipeScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
   scrollView: {
     flex: 1,
@@ -538,107 +592,113 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 24,
-    marginTop: 15,
+    fontWeight: 'bold',
+    marginTop: 10,
     marginBottom: 5,
+    textAlign: 'center',
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#4B5563',
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 22,
+  },
+  optionsContainer: {
+    padding: 20,
+  },
+  optionCard: {
+    marginBottom: 15,
+    elevation: 2,
+    borderRadius: 8,
+  },
+  optionContent: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  optionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 10,
+    marginBottom: 5,
+    textAlign: 'center',
+  },
+  optionDescription: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  backButton: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  backToOptions: {
+    padding: 20,
+    alignItems: 'center',
   },
   section: {
     backgroundColor: '#fff',
-    padding: 20,
     marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
+    padding: 20,
   },
   sectionTitle: {
-    fontSize: 18,
-    marginBottom: 10,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    color: '#4B5563',
+    fontSize: 20,
+    fontWeight: 'bold',
     marginBottom: 15,
-    lineHeight: 20,
+    color: '#333',
   },
   input: {
-    marginBottom: 10,
+    marginBottom: 15,
     backgroundColor: '#fff',
   },
   row: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   halfInput: {
     flex: 1,
   },
-  imageButton: {
-    marginBottom: 10,
-  },
-  imageText: {
-    color: '#10B981',
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
-  imageButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  halfButton: {
-    flex: 1,
-    marginHorizontal: 5,
-  },
   ingredientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginBottom: 15,
   },
   ingredientInputs: {
-    flex: 1,
-    flexDirection: 'row',
-    gap: 10,
+    marginBottom: 10,
   },
   ingredientName: {
-    flex: 2,
+    marginBottom: 10,
   },
-  ingredientAmount: {
-    flex: 1,
-  },
-  ingredientUnit: {
-    flex: 1,
-  },
-  instructionRow: {
+  amountRow: {
     flexDirection: 'row',
-    marginBottom: 15,
+    justifyContent: 'space-between',
   },
-  instructionNumber: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-    marginTop: 5,
+  amountInput: {
+    flex: 1,
+    marginRight: 10,
   },
-  stepNumber: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  instructionContent: {
+  unitInput: {
     flex: 1,
   },
   removeButton: {
     alignSelf: 'flex-end',
-    marginTop: 5,
+  },
+  addButton: {
+    marginTop: 10,
+  },
+  instructionRow: {
+    marginBottom: 20,
+  },
+  stepNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
+  },
+  instructionInputRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  instructionInput: {
+    flex: 1,
+    marginRight: 10,
   },
   chipContainer: {
     flexDirection: 'row',
@@ -650,16 +710,16 @@ const styles = StyleSheet.create({
   },
   actionButtons: {
     padding: 20,
-    gap: 15,
+    backgroundColor: '#fff',
   },
   submitButton: {
-    backgroundColor: '#10B981',
+    paddingVertical: 8,
   },
-  cancelButton: {
-    borderColor: '#6B7280',
-  },
-  divider: {
-    marginVertical: 10,
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
   },
 });
 

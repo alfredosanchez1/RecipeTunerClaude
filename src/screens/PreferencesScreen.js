@@ -5,6 +5,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Card,
   Title,
@@ -13,15 +14,13 @@ import {
   useTheme,
   Chip,
   Divider,
-  TextInput,
-  List,
-  RadioButton,
-  Switch,
 } from 'react-native-paper';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 import { useUser } from '../context/UserContext';
 import { theme } from '../styles/theme';
+import { COOKING_TIME_OPTIONS, DIETARY_RESTRICTION_OPTIONS, CUISINE_OPTIONS, ALLERGY_OPTIONS, INTOLERANCE_OPTIONS } from '../config/preferences';
+
 
 const PreferencesScreen = ({ navigation }) => {
   const theme = useTheme();
@@ -31,13 +30,8 @@ const PreferencesScreen = ({ navigation }) => {
     dietaryRestrictions: [],
     allergies: [],
     intolerances: [],
-    medicalConditions: [],
     cuisinePreferences: [],
-    spiceLevel: 'medium',
-    cookingTime: 'medium',
-    servings: 2,
-    healthGoals: [],
-    activityLevel: 'moderate',
+    cookingTimePreference: 'Medio',
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -47,42 +41,13 @@ const PreferencesScreen = ({ navigation }) => {
     setFormData(preferences);
   }, [preferences]);
 
-  const dietaryRestrictionOptions = [
-    'Vegetariano', 'Vegano', 'Sin Gluten', 'Sin Lactosa', 'Sin Azúcar',
-    'Bajo en Carbohidratos', 'Alto en Proteínas', 'Bajo en Grasas',
-    'Sin Mariscos', 'Sin Frutos Secos', 'Sin Huevos', 'Sin Soja'
-  ];
+  // Usar las opciones de la configuración de la base de datos
 
-  const allergyOptions = [
-    'Lácteos', 'Huevos', 'Pescado', 'Mariscos', 'Frutos Secos',
-    'Cacahuetes', 'Trigo', 'Soja', 'Sésamo', 'Mostaza', 'Apio',
-    'Sulfitos', 'Lupino', 'Moluscos'
-  ];
+  // Usar las opciones de la configuración
 
-  const intoleranceOptions = [
-    'Lactosa', 'Gluten', 'Fructosa', 'Histamina', 'FODMAPs',
-    'Salicilatos', 'Oxalatos', 'Lectinas'
-  ];
+  // Usar las opciones de la configuración de la base de datos
 
-  const cuisinePreferenceOptions = [
-    'Mexicana', 'Italiana', 'China', 'Japonesa', 'India', 'Francesa',
-    'Española', 'Mediterránea', 'Americana', 'Árabe', 'Tailandesa',
-    'Griega', 'Turca', 'Libanesa', 'Vietnamita', 'Coreana'
-  ];
 
-  const healthGoalOptions = [
-    'Pérdida de Peso', 'Ganancia de Masa Muscular', 'Mantenimiento',
-    'Mejora de Energía', 'Control de Azúcar en Sangre', 'Salud Cardíaca',
-    'Salud Digestiva', 'Antiinflamatorio', 'Desintoxicación'
-  ];
-
-  const activityLevelOptions = [
-    { value: 'sedentary', label: 'Sedentario (poco ejercicio)' },
-    { value: 'light', label: 'Ligero (1-3 días/semana)' },
-    { value: 'moderate', label: 'Moderado (3-5 días/semana)' },
-    { value: 'active', label: 'Activo (6-7 días/semana)' },
-    { value: 'very_active', label: 'Muy activo (ejercicio intenso diario)' }
-  ];
 
   const handleToggleArray = (field, value) => {
     const currentArray = formData[field] || [];
@@ -101,17 +66,32 @@ const PreferencesScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     try {
-      await savePreferences(formData);
+      console.log('🔧 PREFERENCES SCREEN - Iniciando guardado...');
+      console.log('📋 Datos del formulario a guardar:', JSON.stringify(formData, null, 2));
+      console.log('📊 Estado actual de onboarding:', preferences.isOnboardingComplete);
+      
+      // Si el onboarding no está completo, marcar como completo al guardar
+      const shouldCompleteOnboarding = !preferences.isOnboardingComplete;
+      console.log('🎯 PREFERENCES SCREEN - ¿Completar onboarding?', shouldCompleteOnboarding);
+      
+      // Guardar las preferencias y marcar onboarding como completo si es necesario
+      await savePreferences(formData, shouldCompleteOnboarding);
+      console.log('✅ PREFERENCES SCREEN - Guardado exitoso');
+      
       setIsEditing(false);
       setHasChanges(false);
       
-      if (!preferences.isOnboardingComplete) {
+      // Solo actualizar estado local si era necesario completar onboarding
+      if (shouldCompleteOnboarding) {
+        console.log('🎯 PREFERENCES SCREEN - Completando onboarding en estado local...');
         await completeOnboarding();
+        console.log('✅ PREFERENCES SCREEN - Onboarding completado');
       }
       
       Alert.alert('Éxito', 'Preferencias guardadas correctamente');
     } catch (error) {
-      Alert.alert('Error', 'No se pudieron guardar las preferencias');
+      console.error('❌ PREFERENCES SCREEN - Error guardando:', error);
+      Alert.alert('Error', 'No se pudieron guardar las preferencias: ' + error.message);
     }
   };
 
@@ -172,25 +152,51 @@ const PreferencesScreen = ({ navigation }) => {
         <Icon name={icon} size={24} color={color} />
         <Title style={styles.sectionTitle}>{title}</Title>
       </View>
-      <RadioButton.Group
-        onValueChange={(value) => handleInputChange(field, value)}
-        value={formData[field]}
-      >
+      <View style={styles.radioButtonContainer}>
         {options.map((option) => (
-          <RadioButton.Item
-            key={option.value || option}
-            label={option.label || option}
-            value={option.value || option}
-            style={styles.radioItem}
+          <Button
+            key={option}
+            mode={formData[field] === option ? "contained" : "outlined"}
+            onPress={() => handleInputChange(field, option)}
+            style={[
+              styles.radioButton,
+              formData[field] === option && styles.selectedRadioButton
+            ]}
             disabled={!isEditing}
-          />
+            compact
+          >
+            {option}
+          </Button>
         ))}
-      </RadioButton.Group>
+      </View>
     </View>
   );
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+      {/* Navigation Header */}
+      <View style={styles.navigationHeader}>
+        <Button
+          mode="outlined"
+          onPress={() => navigation.goBack()}
+          icon="arrow-left"
+          style={styles.backButton}
+          compact
+        >
+          Volver
+        </Button>
+        <Button
+          mode="contained"
+          onPress={() => navigation.navigate('Home')}
+          icon="home"
+          style={styles.homeButton}
+          compact
+        >
+          Inicio
+        </Button>
+      </View>
+
       {/* Header */}
       <Card style={styles.headerCard}>
         <Card.Content style={styles.headerContent}>
@@ -201,6 +207,8 @@ const PreferencesScreen = ({ navigation }) => {
           </Text>
         </Card.Content>
       </Card>
+
+      
 
       {/* Action Buttons */}
       <View style={styles.actionButtons}>
@@ -238,7 +246,7 @@ const PreferencesScreen = ({ navigation }) => {
       {/* Dietary Restrictions */}
       {renderChipSection(
         'Restricciones Dietéticas',
-        dietaryRestrictionOptions,
+        DIETARY_RESTRICTION_OPTIONS,
         'dietaryRestrictions',
         'food-apple',
         '#4CAF50'
@@ -247,31 +255,31 @@ const PreferencesScreen = ({ navigation }) => {
       <Divider style={styles.divider} />
 
       {/* Allergies */}
-      {renderChipSection(
-        'Alergias Alimentarias',
-        allergyOptions,
-        'allergies',
-        'alert-circle',
-        '#F44336'
-      )}
+             {renderChipSection(
+         'Alergias Alimentarias',
+         ALLERGY_OPTIONS,
+         'allergies',
+         'alert-circle',
+         '#F44336'
+       )}
 
       <Divider style={styles.divider} />
 
       {/* Intolerances */}
-      {renderChipSection(
-        'Intolerancias',
-        intoleranceOptions,
-        'intolerances',
-        'alert-octagon',
-        '#FF9800'
-      )}
+             {renderChipSection(
+         'Intolerancias',
+         INTOLERANCE_OPTIONS,
+         'intolerances',
+         'alert-octagon',
+         '#FF9800'
+       )}
 
       <Divider style={styles.divider} />
 
       {/* Cuisine Preferences */}
       {renderChipSection(
         'Preferencias de Cocina',
-        cuisinePreferenceOptions,
+        CUISINE_OPTIONS,
         'cuisinePreferences',
         'flag',
         '#2196F3'
@@ -279,64 +287,13 @@ const PreferencesScreen = ({ navigation }) => {
 
       <Divider style={styles.divider} />
 
-      {/* Spice Level */}
+      {/* Cooking Time Preference */}
       {renderRadioSection(
-        'Nivel de Picante',
-        ['Mild', 'Medium', 'Hot', 'Extra Hot'],
-        'spiceLevel',
-        'fire',
-        '#FF5722'
-      )}
-
-      <Divider style={styles.divider} />
-
-      {/* Cooking Time */}
-      {renderRadioSection(
-        'Tiempo de Cocción Preferido',
-        ['Quick', 'Medium', 'Long'],
-        'cookingTime',
+        'Tiempo de Preparación Preferido',
+        COOKING_TIME_OPTIONS,
+        'cookingTimePreference',
         'clock',
         '#607D8B'
-      )}
-
-      <Divider style={styles.divider} />
-
-      {/* Servings */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Icon name="account-group" size={24} color="#4CAF50" />
-          <Title style={styles.sectionTitle}>Número de Porciones</Title>
-        </View>
-        <TextInput
-          label="Porciones por receta"
-          value={formData.servings?.toString() || '2'}
-          onChangeText={(value) => handleInputChange('servings', parseInt(value) || 2)}
-          keyboardType="numeric"
-          style={styles.input}
-          disabled={!isEditing}
-        />
-      </View>
-
-      <Divider style={styles.divider} />
-
-      {/* Health Goals */}
-      {renderChipSection(
-        'Objetivos de Salud',
-        healthGoalOptions,
-        'healthGoals',
-        'heart-pulse',
-        '#E91E63'
-      )}
-
-      <Divider style={styles.divider} />
-
-      {/* Activity Level */}
-      {renderRadioSection(
-        'Nivel de Actividad Física',
-        activityLevelOptions,
-        'activityLevel',
-        'run',
-        '#9C27B0'
       )}
 
       {/* Onboarding Completion */}
@@ -372,14 +329,37 @@ const PreferencesScreen = ({ navigation }) => {
           </Text>
         </Card.Content>
       </Card>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  navigationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    backgroundColor: '#f8f9fa',
+  },
+  backButton: {
+    borderColor: '#6B7280',
+    borderWidth: 1,
+    minWidth: 100,
+  },
+  homeButton: {
+    backgroundColor: '#4CAF50',
+    minWidth: 100,
   },
   headerCard: {
     margin: 20,
@@ -458,6 +438,18 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     fontSize: 14,
     fontWeight: '500',
+  },
+  radioButtonContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  radioButton: {
+    marginBottom: 10,
+    minWidth: 80,
+  },
+  selectedRadioButton: {
+    backgroundColor: theme.colors.primary,
   },
   radioItem: {
     paddingVertical: 8,

@@ -1,283 +1,302 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
+import realmDatabaseService from '../services/realmDatabase';
+import aiService from '../services/aiService';
 
 const RecipeContext = createContext();
 
 const initialState = {
   recipes: [],
-  adaptedRecipes: [],
-  currentRecipe: null,
   isLoading: false,
   error: null,
-  searchQuery: '',
-  filters: {
-    cuisine: '',
-    difficulty: '',
-    cookingTime: '',
-    dietaryRestrictions: [],
-  },
+  searchTerm: '',
+  activeFilters: [],
+  currentRecipe: null
 };
 
-const recipeReducer = (state, action) => {
+function recipeReducer(state, action) {
   switch (action.type) {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
+
     case 'SET_ERROR':
-      return { ...state, error: action.payload };
-    case 'SET_RECIPES':
-      return { ...state, recipes: action.payload };
+      return { ...state, error: action.payload, isLoading: false };
+
+    case 'LOAD_RECIPES':
+      return { ...state, recipes: action.payload, isLoading: false, error: null };
+
     case 'ADD_RECIPE':
-      return { ...state, recipes: [action.payload, ...state.recipes] };
+      return { ...state, recipes: [...state.recipes, action.payload] };
+
     case 'UPDATE_RECIPE':
       return {
         ...state,
         recipes: state.recipes.map(recipe =>
           recipe.id === action.payload.id ? action.payload : recipe
-        ),
+        )
       };
+
     case 'DELETE_RECIPE':
       return {
         ...state,
-        recipes: state.recipes.filter(recipe => recipe.id !== action.payload),
+        recipes: state.recipes.filter(recipe => recipe.id !== action.payload)
       };
+
+    case 'SET_SEARCH_TERM':
+      return { ...state, searchTerm: action.payload };
+
+    case 'SET_ACTIVE_FILTERS':
+      return { ...state, activeFilters: action.payload };
+
     case 'SET_CURRENT_RECIPE':
       return { ...state, currentRecipe: action.payload };
-    case 'SET_ADAPTED_RECIPES':
-      return { ...state, adaptedRecipes: action.payload };
-    case 'ADD_ADAPTED_RECIPE':
-      return { ...state, adaptedRecipes: [action.payload, ...state.adaptedRecipes] };
-    case 'SET_SEARCH_QUERY':
-      return { ...state, searchQuery: action.payload };
-    case 'SET_FILTERS':
-      return { ...state, filters: { ...state.filters, ...action.payload } };
-    case 'CLEAR_FILTERS':
-      return { ...state, filters: initialState.filters };
-    case 'RESET_STATE':
-      return initialState;
+
     default:
       return state;
   }
-};
+}
 
-export const RecipeProvider = ({ children }) => {
+export function RecipeProvider({ children }) {
   const [state, dispatch] = useReducer(recipeReducer, initialState);
 
   useEffect(() => {
-    loadRecipes();
+    // Inicializar Realm V2 y cargar datos
+    const initializeDatabase = async () => {
+      console.log('🔄 RECIPE CONTEXT - Inicializando Realm V2...');
+
+      const success = await realmDatabaseService.init();
+
+      if (success) {
+        console.log('✅ RECIPE CONTEXT - Realm V2 listo, cargando recetas...');
+        setTimeout(() => {
+          loadRecipes();
+        }, 500);
+      } else {
+        console.error('❌ RECIPE CONTEXT - Error inicializando Realm V2');
+        dispatch({ type: 'SET_ERROR', payload: 'Error inicializando base de datos' });
+      }
+    };
+
+    initializeDatabase();
   }, []);
 
   const loadRecipes = async () => {
+    dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      const recipesData = await AsyncStorage.getItem('recipes');
-      const adaptedRecipesData = await AsyncStorage.getItem('adaptedRecipes');
+      console.log('🔄 RECIPE CONTEXT - Cargando recetas desde Realm V2...');
 
-      if (recipesData) {
-        dispatch({ type: 'SET_RECIPES', payload: JSON.parse(recipesData) });
-      }
-      if (adaptedRecipesData) {
-        dispatch({ type: 'SET_ADAPTED_RECIPES', payload: JSON.parse(adaptedRecipesData) });
-      }
+      const recipes = await realmDatabaseService.getAllRecipes();
+
+      console.log(`📊 RECIPE CONTEXT - ${recipes.length} recetas cargadas`);
+      dispatch({ type: 'LOAD_RECIPES', payload: recipes });
     } catch (error) {
-      console.error('Error loading recipes:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error loading recipes' });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
+      console.error('❌ RECIPE CONTEXT - Error cargando recetas:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
     }
   };
 
-  const saveRecipe = async (recipe) => {
+  const addRecipe = async (recipe) => {
     try {
-      const newRecipe = {
-        ...recipe,
-        id: Date.now().toString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      console.log('➕ RECIPE CONTEXT - Agregando receta a Realm V2...');
 
-      const updatedRecipes = [newRecipe, ...state.recipes];
-      await AsyncStorage.setItem('recipes', JSON.stringify(updatedRecipes));
+      const newRecipe = await realmDatabaseService.createRecipe(recipe);
+
       dispatch({ type: 'ADD_RECIPE', payload: newRecipe });
-
+      console.log('✅ RECIPE CONTEXT - Receta agregada correctamente');
       return newRecipe;
     } catch (error) {
-      console.error('Error saving recipe:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error saving recipe' });
+      console.error('❌ RECIPE CONTEXT - Error agregando receta:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
   };
 
   const updateRecipe = async (recipeId, updates) => {
     try {
-      const updatedRecipe = {
-        ...state.recipes.find(recipe => recipe.id === recipeId),
-        ...updates,
-        updatedAt: new Date().toISOString(),
-      };
+      console.log('✏️ RECIPE CONTEXT - Actualizando receta en Realm V2...');
 
-      const updatedRecipes = state.recipes.map(recipe =>
-        recipe.id === recipeId ? updatedRecipe : recipe
-      );
+      const success = await realmDatabaseService.updateRecipe(recipeId, updates);
+      if (!success) throw new Error('No se pudo actualizar la receta');
 
-      await AsyncStorage.setItem('recipes', JSON.stringify(updatedRecipes));
+      const updatedRecipe = await realmDatabaseService.getRecipeById(recipeId);
+
       dispatch({ type: 'UPDATE_RECIPE', payload: updatedRecipe });
-
+      console.log('✅ RECIPE CONTEXT - Receta actualizada correctamente');
       return updatedRecipe;
     } catch (error) {
-      console.error('Error updating recipe:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error updating recipe' });
+      console.error('❌ RECIPE CONTEXT - Error actualizando receta:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
   };
 
   const deleteRecipe = async (recipeId) => {
     try {
-      const updatedRecipes = state.recipes.filter(recipe => recipe.id !== recipeId);
-      await AsyncStorage.setItem('recipes', JSON.stringify(updatedRecipes));
-      dispatch({ type: 'DELETE_RECIPE', payload: recipeId });
+      console.log('🗑️ RECIPE CONTEXT - Eliminando receta de Realm V2...');
+
+      const success = await realmDatabaseService.deleteRecipe(recipeId);
+
+      if (success) {
+        dispatch({ type: 'DELETE_RECIPE', payload: recipeId });
+        console.log('✅ RECIPE CONTEXT - Receta eliminada correctamente');
+      } else {
+        throw new Error('No se pudo eliminar la receta');
+      }
     } catch (error) {
-      console.error('Error deleting recipe:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error deleting recipe' });
+      console.error('❌ RECIPE CONTEXT - Error eliminando receta:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
       throw error;
     }
+  };
+
+  const saveRecipeWithAdaptation = async (originalRecipeData, adaptedRecipeData) => {
+    try {
+      console.log('💫 RECIPE CONTEXT - Guardando receta original y adaptada...');
+
+      // 1. Guardar la receta original (si no existe ya)
+      let originalRecipe = null;
+      if (!originalRecipeData.isAdapted) {
+        originalRecipe = await realmDatabaseService.createRecipe({
+          ...originalRecipeData,
+          isAdapted: false
+        });
+        console.log('✅ RECIPE CONTEXT - Receta original guardada:', originalRecipe.id);
+      }
+
+      // 2. Guardar la receta adaptada con referencia a la original
+      const adaptedRecipe = await realmDatabaseService.createRecipe({
+        ...adaptedRecipeData,
+        isAdapted: true,
+        originalRecipeId: originalRecipe?.id || originalRecipeData.id,
+        adaptedAt: new Date().toISOString()
+      });
+      console.log('✅ RECIPE CONTEXT - Receta adaptada guardada:', adaptedRecipe.id);
+
+      // 3. Actualizar el estado local
+      if (originalRecipe) {
+        dispatch({ type: 'ADD_RECIPE', payload: originalRecipe });
+      }
+      dispatch({ type: 'ADD_RECIPE', payload: adaptedRecipe });
+
+      return {
+        original: originalRecipe,
+        adapted: adaptedRecipe
+      };
+    } catch (error) {
+      console.error('❌ RECIPE CONTEXT - Error guardando recetas:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      throw error;
+    }
+  };
+
+  const adaptRecipe = async (originalRecipe, adaptationRequest) => {
+    try {
+      // Simular adaptación de receta
+      const adaptedRecipe = {
+        ...originalRecipe,
+        id: Date.now().toString(),
+        name: `${originalRecipe.name} (Adaptada)`,
+        adaptationRequest,
+        isAdapted: true,
+        originalRecipeId: originalRecipe.id,
+        createdAt: new Date()
+      };
+      dispatch({ type: 'ADD_RECIPE', payload: adaptedRecipe });
+      return adaptedRecipe;
+    } catch (error) {
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      throw error;
+    }
+  };
+
+  const setSearchTerm = (term) => {
+    dispatch({ type: 'SET_SEARCH_TERM', payload: term });
+  };
+
+  const setActiveFilters = (filters) => {
+    dispatch({ type: 'SET_ACTIVE_FILTERS', payload: filters });
+  };
+
+  const setCurrentRecipe = (recipe) => {
+    dispatch({ type: 'SET_CURRENT_RECIPE', payload: recipe });
   };
 
   const adaptRecipeWithAI = async (recipe, userPreferences) => {
     try {
+      console.log('🤖 RECIPE CONTEXT - Iniciando adaptación con IA...');
       dispatch({ type: 'SET_LOADING', payload: true });
-      dispatch({ type: 'SET_ERROR', payload: null });
 
-      // Simulación de llamada a IA - en producción esto sería una API real
-      const adaptedRecipe = await simulateAIAdaptation(recipe, userPreferences);
+      // Usar el servicio de IA para adaptar la receta
+      const adaptedRecipeData = await aiService.adaptRecipeWithAI(recipe, userPreferences);
 
-      const newAdaptedRecipe = {
-        ...adaptedRecipe,
+      // Crear la receta adaptada con toda la información nutricional
+      const adaptedRecipe = {
+        ...adaptedRecipeData,
         id: Date.now().toString(),
+        isAdapted: true,
         originalRecipeId: recipe.id,
-        createdAt: new Date().toISOString(),
+        adaptedAt: new Date().toISOString(),
+        createdAt: new Date()
       };
 
-      const updatedAdaptedRecipes = [newAdaptedRecipe, ...state.adaptedRecipes];
-      await AsyncStorage.setItem('adaptedRecipes', JSON.stringify(updatedAdaptedRecipes));
-      dispatch({ type: 'ADD_ADAPTED_RECIPE', payload: newAdaptedRecipe });
+      // Guardar en la base de datos
+      const savedRecipe = await realmDatabaseService.createRecipe(adaptedRecipe);
 
-      return newAdaptedRecipe;
-    } catch (error) {
-      console.error('Error adapting recipe with AI:', error);
-      dispatch({ type: 'SET_ERROR', payload: 'Error adapting recipe with AI' });
-      throw error;
-    } finally {
+      // Actualizar el estado local
+      dispatch({ type: 'ADD_RECIPE', payload: savedRecipe });
       dispatch({ type: 'SET_LOADING', payload: false });
+
+      console.log('✅ RECIPE CONTEXT - Receta adaptada con IA guardada exitosamente');
+      return savedRecipe;
+    } catch (error) {
+      console.error('❌ RECIPE CONTEXT - Error adaptando receta con IA:', error);
+      dispatch({ type: 'SET_ERROR', payload: error.message });
+      dispatch({ type: 'SET_LOADING', payload: false });
+      throw error;
     }
   };
 
-  const simulateAIAdaptation = async (recipe, userPreferences) => {
-    // Simulación de procesamiento de IA
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    const adaptedIngredients = recipe.ingredients.map(ingredient => {
-      // Simular adaptaciones basadas en preferencias
-      if (userPreferences.dietaryRestrictions.includes('vegetarian') && 
-          ingredient.name.toLowerCase().includes('meat')) {
-        return {
-          ...ingredient,
-          name: ingredient.name.replace(/meat/i, 'tofu'),
-          notes: 'Adaptado para vegetarianos',
-        };
-      }
-      return ingredient;
-    });
-
-    const adaptedInstructions = recipe.instructions.map(instruction => {
-      // Simular adaptaciones de instrucciones
-      if (userPreferences.cookingTime === 'quick') {
-        return instruction.replace(/cook for \d+ minutes/i, 'cook for 10 minutes');
-      }
-      return instruction;
-    });
-
-    return {
-      ...recipe,
-      title: `${recipe.title} (Adaptado)`,
-      ingredients: adaptedIngredients,
-      instructions: adaptedInstructions,
-      adaptations: {
-        dietaryRestrictions: userPreferences.dietaryRestrictions,
-        allergies: userPreferences.allergies,
-        cookingTime: userPreferences.cookingTime,
-        spiceLevel: userPreferences.spiceLevel,
-      },
-    };
-  };
-
-  const searchRecipes = (query) => {
-    dispatch({ type: 'SET_SEARCH_QUERY', payload: query });
-  };
-
-  const setFilters = (filters) => {
-    dispatch({ type: 'SET_FILTERS', payload: filters });
-  };
-
-  const clearFilters = () => {
-    dispatch({ type: 'CLEAR_FILTERS' });
-  };
-
-  const getFilteredRecipes = () => {
-    let filtered = state.recipes;
-
-    if (state.searchQuery) {
-      filtered = filtered.filter(recipe =>
-        recipe.title.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-        recipe.description.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-        recipe.ingredients.some(ingredient =>
-          ingredient.name.toLowerCase().includes(state.searchQuery.toLowerCase())
-        )
-      );
+  // Computed properties for easier access
+  const adaptedRecipes = state.recipes.filter(recipe => {
+    const isAdapted = recipe.isAdapted === true || recipe.adapted === true;
+    if (isAdapted) {
+      console.log('🔍 RECIPE CONTEXT - Receta adaptada encontrada:', recipe.title, 'isAdapted:', recipe.isAdapted, 'adapted:', recipe.adapted);
     }
+    return isAdapted;
+  });
+  const originalRecipes = state.recipes.filter(recipe => recipe.isAdapted !== true && recipe.adapted !== true);
 
-    if (state.filters.cuisine) {
-      filtered = filtered.filter(recipe => recipe.cuisine === state.filters.cuisine);
-    }
-
-    if (state.filters.difficulty) {
-      filtered = filtered.filter(recipe => recipe.difficulty === state.filters.difficulty);
-    }
-
-    if (state.filters.cookingTime) {
-      filtered = filtered.filter(recipe => recipe.cookingTime === state.filters.cookingTime);
-    }
-
-    if (state.filters.dietaryRestrictions.length > 0) {
-      filtered = filtered.filter(recipe =>
-        state.filters.dietaryRestrictions.every(restriction =>
-          recipe.dietaryRestrictions.includes(restriction)
-        )
-      );
-    }
-
-    return filtered;
-  };
+  console.log('📊 RECIPE CONTEXT - Total recetas:', state.recipes.length, 'Adaptadas:', adaptedRecipes.length, 'Originales:', originalRecipes.length);
 
   const value = {
     ...state,
-    saveRecipe,
+    adaptedRecipes, // Computed property for backward compatibility
+    originalRecipes, // Computed property for easier access
+    loadRecipes,
+    addRecipe,
+    saveRecipe: addRecipe, // Alias para compatibilidad
     updateRecipe,
     deleteRecipe,
+    adaptRecipe,
     adaptRecipeWithAI,
-    searchRecipes,
-    setFilters,
-    clearFilters,
-    getFilteredRecipes,
+    saveRecipeWithAdaptation,
+    setSearchTerm,
+    setActiveFilters,
+    setCurrentRecipe
   };
 
-  return <RecipeContext.Provider value={value}>{children}</RecipeContext.Provider>;
-};
+  return (
+    <RecipeContext.Provider value={value}>
+      {children}
+    </RecipeContext.Provider>
+  );
+}
 
 export const useRecipe = () => {
   const context = useContext(RecipeContext);
   if (!context) {
-    throw new Error('useRecipe must be used within a RecipeProvider');
+    throw new Error('useRecipe debe usarse dentro de RecipeProvider');
   }
   return context;
 };
+
+export default RecipeContext;
