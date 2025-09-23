@@ -5,7 +5,7 @@
 
 // URL base del servidor en Render
 export const BACKEND_CONFIG = {
-  BASE_URL: 'https://recipetuner-api.onrender.com',
+  BASE_URL: 'https://recipetunerclaude.onrender.com',
   TIMEOUT: 30000, // 30 segundos
 
   // Endpoints de Stripe (verificados con CaloriasAPI)
