@@ -34,14 +34,14 @@ En tu dashboard de Render (`https://dashboard.render.com/web/srv-d1bl6bp5pdvs73e
 
 ### **Variables Stripe**
 ```
-STRIPE_SECRET_KEY=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
+STRIPE_SECRET_KEY=tu_stripe_secret_key_aqui
 STRIPE_WEBHOOK_SECRET=[Obtener del dashboard de Stripe]
 ```
 
 ### **Variables Supabase**
 ```
-SUPABASE_URL=https://ipuqtmdljfirpbaxvygd.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlwdXF0bWRsamZpcnBiYXh2eWdkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDE4ODU3NjYsImV4cCI6MjA1NzQ2MTc2Nn0.3KeN7qCquVbW5FUWrgDFvgXCx8NvAlftwI7uKY9kaXE
+SUPABASE_URL=https://tu_supabase_url.supabase.co
+SUPABASE_ANON_KEY=tu_supabase_anon_key_aqui
 SUPABASE_SERVICE_ROLE_KEY=[Obtener de Supabase Dashboard]
 ```
 

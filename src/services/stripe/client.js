@@ -10,7 +10,7 @@ import { BACKEND_CONFIG, buildApiUrl, getAuthHeaders } from '../config/backend';
 // Configuración de Stripe para RecipeTuner
 const STRIPE_CONFIG = {
   // Estas keys deberás obtenerlas de tu dashboard de Stripe existente
-  publishableKey: 'pk_live_51RnpLnRbKyoDfUk2NgluRiZWu29rBZ0q71bs6l93fHpJ0TWnDrxb61wKd5aEHtggcM339cU7NEgPHNNpAC1jTDGb00wiWF9jTK',
+  publishableKey: 'pk_live_TU_STRIPE_PUBLISHABLE_KEY_AQUI',
   merchantIdentifier: 'com.recipetuner.app', // Para Apple Pay
   urlScheme: 'recipetuner', // Para deep linking
   // Metadata para identificar que es RecipeTuner

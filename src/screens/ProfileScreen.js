@@ -234,6 +234,15 @@ const ProfileScreen = ({ navigation }) => {
           <Divider />
 
           <List.Item
+            title="Suscripciones"
+            description="Gestionar tu plan de suscripción"
+            left={(props) => <List.Icon {...props} icon="crown" />}
+            onPress={() => navigation.navigate('Subscription')}
+          />
+
+          <Divider />
+
+          <List.Item
             title="Acerca de"
             description="Información de la aplicación"
             left={(props) => <List.Icon {...props} icon="information" />}

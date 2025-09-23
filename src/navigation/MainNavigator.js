@@ -14,6 +14,7 @@ import AdaptedRecipeScreen from '../screens/AdaptedRecipeScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
+import SubscriptionScreen from '../screens/SubscriptionScreen';
 import ImportRecipeScreen from '../screens/recipe/ImportRecipeScreen';
 import ConvertToPDFScreen from '../screens/recipe/ConvertToPDFScreen';
 import ImportFileScreen from '../screens/ImportFileScreen';
@@ -161,10 +162,15 @@ const ProfileStack = () => (
       component={ProfileScreen}
       options={{ title: 'Mi Perfil' }}
     />
-    <Stack.Screen 
-      name="Preferences" 
+    <Stack.Screen
+      name="Preferences"
       component={PreferencesScreen}
       options={{ title: 'Preferencias' }}
+    />
+    <Stack.Screen
+      name="Subscription"
+      component={SubscriptionScreen}
+      options={{ title: 'Suscripciones' }}
     />
   </Stack.Navigator>
 );

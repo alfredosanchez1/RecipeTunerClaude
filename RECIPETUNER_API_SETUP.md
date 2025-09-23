@@ -24,7 +24,7 @@ Copiar todas las variables del archivo `server-endpoints/render_env_config.txt`:
 
 #### Stripe
 ```
-STRIPE_SECRET_KEY=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
+STRIPE_SECRET_KEY=tu_stripe_secret_key_aqui
 STRIPE_WEBHOOK_SECRET=[Configurar después del webhook]
 ```
 

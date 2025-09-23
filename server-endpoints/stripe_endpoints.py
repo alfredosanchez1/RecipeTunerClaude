@@ -39,6 +39,13 @@ class UpdatePaymentMethodRequest(BaseModel):
     paymentMethodId: str
     metadata: Dict[str, str] = {}
 
+class CreatePaymentIntentRequest(BaseModel):
+    amount: int
+    currency: str = "usd"
+    plan_id: Optional[str] = None
+    price_id: Optional[str] = None
+    metadata: Dict[str, str] = {}
+
 # ================== VALIDACIONES ==================
 
 def validate_recipetuner_request(metadata: Dict[str, str]):
@@ -163,6 +170,55 @@ async def cancel_subscription(
             "status": canceled_subscription.status,
             "cancel_at_period_end": canceled_subscription.cancel_at_period_end,
             "current_period_end": canceled_subscription.current_period_end
+        }
+
+    except stripe.error.StripeError as e:
+        logger.error(f"❌ Error de Stripe: {e}")
+        raise HTTPException(status_code=500, detail=f"Error de Stripe: {str(e)}")
+
+    except Exception as e:
+        logger.error(f"❌ Error inesperado: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
+
+@router.post("/create-payment-intent")
+async def create_payment_intent(
+    request: CreatePaymentIntentRequest,
+    current_user = Depends(get_current_user)
+):
+    """
+    Crear Payment Intent para procesar pago
+    """
+    try:
+        logger.info(f"💳 Creando payment intent para usuario: {current_user.get('user_id')}")
+
+        # Buscar o crear customer en Stripe
+        customer = await get_or_create_stripe_customer(current_user)
+
+        # Crear Payment Intent
+        payment_intent = stripe.PaymentIntent.create(
+            amount=request.amount,
+            currency=request.currency,
+            customer=customer.id,
+            metadata={
+                **request.metadata,
+                "app_name": "recipetuner",
+                "user_id": current_user.get("user_id"),
+                "plan_id": request.plan_id or "",
+                "price_id": request.price_id or "",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        )
+
+        logger.info(f"✅ Payment Intent creado: {payment_intent.id}")
+
+        return {
+            "success": True,
+            "payment_intent_id": payment_intent.id,
+            "client_secret": payment_intent.client_secret,
+            "amount": payment_intent.amount,
+            "currency": payment_intent.currency,
+            "status": payment_intent.status
         }
 
     except stripe.error.StripeError as e:
