@@ -97,7 +97,7 @@ async def root():
 async def health_check():
     """Health check mejorado"""
     try:
-        health_data = await health_check_enhanced()
+        health_data = health_check_enhanced()
         return JSONResponse(
             status_code=200 if health_data["status"] == "healthy" else 503,
             content=health_data
