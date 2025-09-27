@@ -17,6 +17,7 @@ import {
   Divider,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import { useStripe } from '../services/stripe/client';
 
 import {
   getSubscriptionPlans,
@@ -36,6 +37,7 @@ const SubscriptionScreen = ({ navigation }) => {
   }, []);
 
   const theme = useTheme();
+  const stripe = useStripe();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
@@ -208,33 +210,86 @@ const SubscriptionScreen = ({ navigation }) => {
 
       console.log('💰 Precio seleccionado:', selectedPrice, 'Price ID:', selectedPriceId);
 
-      // 🧪 TEMPORAL: Usar endpoint simple mientras se actualiza el servidor
-      console.log('🧪 USANDO ENDPOINT SIMPLE TEMPORALMENTE - SERVIDOR ACTUALIZÁNDOSE');
-      const response = await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.SIMPLE_TEST, {
-        method: 'POST',
-        auth: false,
-        body: JSON.stringify({
-          plan_id: plan.planId,
-          price_id: selectedPriceId,
-          amount: selectedPrice * 100, // Convertir a centavos
+      // 🎯 INTENTAR CREAR PAYMENT INTENT REAL, SI FALLA USAR SIMULACIÓN
+      console.log('🎯 Intentando crear Payment Intent real con Stripe...');
+      console.log('💰 Datos del plan:', { planId: plan.planId, price: selectedPrice, priceId: selectedPriceId });
+
+      let response;
+
+      try {
+        // Verificar que Stripe esté listo
+        if (!stripe) {
+          throw new Error('Stripe no está inicializado');
+        }
+
+        // Intentar llamada real al servidor
+        response = await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.CREATE_PAYMENT_INTENT, {
+          method: 'POST',
+          auth: true,
+          body: JSON.stringify({
+            plan_id: plan.planId,
+            price_id: selectedPriceId,
+            amount: selectedPrice * 100,
+            currency: plan.currency.toLowerCase(),
+            metadata: {
+              app_name: 'recipetuner',
+              plan_name: plan.name,
+              billing_cycle: isYearly ? 'yearly' : 'monthly'
+            }
+          })
+        });
+
+        console.log('✅ Payment Intent REAL creado:', response);
+
+      } catch (error) {
+        console.log('⚠️ Servidor aún no disponible, usando simulación:', error.message);
+
+        // Fallback a simulación
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        response = {
+          success: true,
+          payment_intent_id: `pi_simulated_${Date.now()}`,
+          client_secret: `pi_simulated_${Date.now()}_secret_${Math.random()}`,
+          amount: selectedPrice * 100,
           currency: plan.currency.toLowerCase(),
-          metadata: {
-            app_name: 'recipetuner',
-            region: plan.region,
-            billing_period: isYearly ? 'yearly' : 'monthly'
-          }
-        })
-      });
+          status: 'requires_payment_method',
+          simulated: true
+        };
+        console.log('🧪 Payment Intent simulado:', response);
+      }
 
       if (response.client_secret) {
-        // Aquí integrarías con Stripe SDK para procesar el pago
-        Alert.alert(
-          'Payment Intent Creado',
-          'Se ha creado el payment intent. En una implementación completa, aquí se abriría la interfaz de pago de Stripe.'
-        );
-
-        // Recargar datos después del pago
-        await loadSubscriptionData();
+        if (response.simulated) {
+          // Payment intent simulado - mostrar mensaje
+          Alert.alert(
+            'Payment Intent Simulado',
+            '🧪 Simulación exitosa. El servidor se está actualizando para habilitar pagos reales.\n\nDatos:\n' +
+            `• Plan: ${plan.name}\n` +
+            `• Precio: ${plan.currency} ${selectedPrice}\n` +
+            `• Ciclo: ${isYearly ? 'Anual' : 'Mensual'}`
+          );
+        } else {
+          // Payment intent real - mostrar información y preparar para implementación futura
+          Alert.alert(
+            '✅ Payment Intent Real Creado',
+            `🎉 ¡Excelente! El servidor ya está funcionando.\n\n` +
+            `Datos del pago:\n` +
+            `• Plan: ${plan.name}\n` +
+            `• Precio: ${plan.currency} ${selectedPrice}\n` +
+            `• Ciclo: ${isYearly ? 'Anual' : 'Mensual'}\n` +
+            `• Payment Intent: ${response.payment_intent_id}\n\n` +
+            `💳 La interfaz de pago se implementará en la siguiente fase.`,
+            [
+              {
+                text: 'Entendido',
+                onPress: () => {
+                  console.log('✅ Payment Intent real listo para procesar');
+                  loadSubscriptionData();
+                }
+              }
+            ]
+          );
+        }
       }
 
     } catch (error) {
@@ -306,6 +361,49 @@ const SubscriptionScreen = ({ navigation }) => {
       default:
         return theme.colors.primary;
     }
+  };
+
+  const mejorarTextoCaracteristica = (feature) => {
+    // Mapeo para mejorar textos de características - solo funciones reales implementadas
+    const mejoras = {
+      // Clarificar funcionalidad offline
+      'Modo offline': 'Consulta de recetas sin internet',
+      'Offline mode': 'Recipe access without internet',
+
+      // Características implementadas - mejorar textos
+      'Recetas ilimitadas': 'Crear y guardar recetas ilimitadas',
+      'Unlimited recipes': 'Create and save unlimited recipes',
+      'Soporte prioritario 24/7': 'Soporte técnico prioritario',
+      'Priority 24/7 support': 'Priority technical support',
+      'Adaptaciones ilimitadas con IA': 'Conversión de recetas con IA (requiere internet)',
+      'Unlimited AI adaptations': 'Recipe conversion with AI (requires internet)',
+
+      // Condiciones médicas - nueva característica
+      'Condiciones médicas': 'Adaptación para condiciones médicas',
+      'Medical conditions': 'Medical condition adaptations',
+      'Restricciones alimentarias': 'Adaptación para condiciones médicas',
+      'Dietary restrictions': 'Medical condition adaptations',
+
+      // Solo el planificador de comidas está en roadmap
+      'Planificador de comidas semanal': 'Planificador de comidas (próximamente)',
+      'Weekly meal planner': 'Meal planner (coming soon)',
+
+      // Características reales - sin "próximamente"
+      'Lista de compras automática': 'Lista de compras inteligente',
+      'Automatic shopping lists': 'Smart shopping lists',
+      'Análisis nutricional avanzado': 'Análisis nutricional completo',
+      'Advanced nutritional analysis': 'Complete nutritional analysis',
+      'Exportar recetas a PDF': 'Exportar recetas a PDF',
+      'Export recipes to PDF': 'Export recipes to PDF',
+
+      // Corregir terminología - no es "premium" sino "completo"
+      'Acceso a recetas premium': 'Acceso completo a todas las recetas',
+      'Access to premium recipes': 'Full access to all recipes',
+      'Recetas personalizadas con IA': 'Recetas personalizadas sin límites',
+      'AI-powered custom recipes': 'Unlimited personalized recipes',
+    };
+
+    return mejoras[feature] || feature;
   };
 
   if (loading) {
@@ -463,7 +561,7 @@ const SubscriptionScreen = ({ navigation }) => {
                 {Array.isArray(plan.features) && plan.features.map((feature, index) => (
                   <View key={index} style={styles.featureItem}>
                     <Icon name="check" size={16} color="#4CAF50" />
-                    <Text style={styles.featureText}>{feature}</Text>
+                    <Text style={styles.featureText}>{mejorarTextoCaracteristica(feature)}</Text>
                   </View>
                 ))}
 

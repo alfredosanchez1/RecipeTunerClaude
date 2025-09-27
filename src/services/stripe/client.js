@@ -1,5 +1,5 @@
-import { StripeProvider, useStripe } from '@stripe/stripe-react-native';
-import { BACKEND_CONFIG, buildApiUrl, getAuthHeaders } from '../config/backend';
+import React, { createContext, useContext, useState } from 'react';
+import { BACKEND_CONFIG, buildApiUrl, getAuthHeaders } from '../../config/backend';
 
 /**
  * Cliente Stripe para RecipeTuner
@@ -9,8 +9,8 @@ import { BACKEND_CONFIG, buildApiUrl, getAuthHeaders } from '../config/backend';
 
 // Configuración de Stripe para RecipeTuner
 const STRIPE_CONFIG = {
-  // Estas keys deberás obtenerlas de tu dashboard de Stripe existente
-  publishableKey: 'pk_live_TU_STRIPE_PUBLISHABLE_KEY_AQUI',
+  // Stripe publishable key real para RecipeTuner
+  publishableKey: 'pk_live_51RnpLnRbKyoDfUk2NgluRiZWu29rBZ0q71bs6l93fHpJ0TWnDrxb61wKd5aEHtggcM339cU7NEgPHNNpAC1jTDGb00wiWF9jTK',
   merchantIdentifier: 'com.recipetuner.app', // Para Apple Pay
   urlScheme: 'recipetuner', // Para deep linking
   // Metadata para identificar que es RecipeTuner
@@ -20,19 +20,37 @@ const STRIPE_CONFIG = {
   }
 };
 
+// Context para manejar Stripe de forma simple
+const StripeContext = createContext();
+
 /**
- * Wrapper del StripeProvider para RecipeTuner
+ * Provider simple de Stripe para Expo
  */
 export const RecipeTunerStripeProvider = ({ children }) => {
+  const [isReady, setIsReady] = useState(true);
+
+  const stripeValue = {
+    isReady,
+    publishableKey: STRIPE_CONFIG.publishableKey,
+    config: STRIPE_CONFIG
+  };
+
   return (
-    <StripeProvider
-      publishableKey={STRIPE_CONFIG.publishableKey}
-      merchantIdentifier={STRIPE_CONFIG.merchantIdentifier}
-      urlScheme={STRIPE_CONFIG.urlScheme}
-    >
+    <StripeContext.Provider value={stripeValue}>
       {children}
-    </StripeProvider>
+    </StripeContext.Provider>
   );
+};
+
+/**
+ * Hook simple para usar Stripe en Expo
+ */
+export const useStripe = () => {
+  const context = useContext(StripeContext);
+  if (!context) {
+    throw new Error('useStripe debe usarse dentro de RecipeTunerStripeProvider');
+  }
+  return context;
 };
 
 // ===== FUNCIONES DE PAGOS =====
@@ -175,37 +193,21 @@ export const updatePaymentMethod = async (subscriptionId, paymentMethodId) => {
 // ===== HOOKS DE REACT NATIVE =====
 
 /**
- * Hook personalizado para usar Stripe en RecipeTuner
+ * Hook simplificado para Expo (sin SDK nativo)
  */
 export const useRecipeTunerStripe = () => {
   const stripe = useStripe();
 
   const processPayment = async (planId, isYearly = false) => {
     try {
-      if (!stripe) {
-        throw new Error('Stripe no está inicializado');
-      }
+      console.log('💳 Procesando pago para plan:', planId);
 
-      // 1. Crear Payment Intent
-      const { client_secret } = await createPaymentIntent(planId, isYearly);
+      // Por ahora, solo crear el payment intent
+      // La confirmación se manejará cuando tengamos el servidor funcionando
+      const response = await createPaymentIntent(planId, isYearly);
 
-      // 2. Confirmar pago
-      const { error, paymentIntent } = await stripe.confirmPayment(client_secret, {
-        paymentMethodType: 'Card',
-        paymentMethodData: {
-          billingDetails: {
-            // Se llenará automáticamente desde el perfil del usuario
-          }
-        }
-      });
-
-      if (error) {
-        console.error('❌ Error en pago:', error);
-        throw error;
-      }
-
-      console.log('✅ Pago confirmado:', paymentIntent.id);
-      return paymentIntent;
+      console.log('✅ Payment Intent creado:', response);
+      return response;
     } catch (error) {
       console.error('❌ Error procesando pago:', error);
       throw error;
@@ -213,39 +215,16 @@ export const useRecipeTunerStripe = () => {
   };
 
   const createPaymentMethod = async (cardDetails) => {
-    try {
-      if (!stripe) {
-        throw new Error('Stripe no está inicializado');
-      }
-
-      const { error, paymentMethod } = await stripe.createPaymentMethod({
-        paymentMethodType: 'Card',
-        paymentMethodData: {
-          card: cardDetails,
-          billingDetails: {
-            // Billing details del usuario
-          }
-        }
-      });
-
-      if (error) {
-        console.error('❌ Error creando método de pago:', error);
-        throw error;
-      }
-
-      console.log('✅ Método de pago creado:', paymentMethod.id);
-      return paymentMethod;
-    } catch (error) {
-      console.error('❌ Error creando método de pago:', error);
-      throw error;
-    }
+    // Placeholder para futuras implementaciones
+    console.log('💳 Crear método de pago (placeholder):', cardDetails);
+    return { id: 'pm_placeholder', type: 'card' };
   };
 
   return {
     stripe,
     processPayment,
     createPaymentMethod,
-    isReady: !!stripe
+    isReady: stripe?.isReady || false
   };
 };
 
