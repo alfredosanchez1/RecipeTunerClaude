@@ -129,6 +129,16 @@ async def debug_routes():
             })
     return {"registered_routes": routes}
 
+@app.post("/api/simple-test")
+async def simple_test():
+    """Endpoint de prueba simple sin dependencias"""
+    return {
+        "success": True,
+        "message": "Test endpoint working",
+        "timestamp": datetime.now().isoformat(),
+        "server_updated": True
+    }
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """Manejador global de excepciones"""

@@ -8,15 +8,15 @@ export const BACKEND_CONFIG = {
   BASE_URL: 'https://recipetunerclaude.onrender.com',
   TIMEOUT: 30000, // 30 segundos
 
-  // Endpoints de Stripe (verificados con CaloriasAPI)
+  // Endpoints de Stripe (con prefijo /api según main.py línea 117)
   STRIPE_ENDPOINTS: {
-    CREATE_PAYMENT_INTENT: '/create-payment-intent', // ✅ Disponible
-    TEST_PAYMENT_INTENT: '/test-payment-intent',
-    // Los siguientes endpoints necesitan ser implementados en el servidor:
-    CREATE_SUBSCRIPTION: '/create-subscription', // ❌ 404 - Necesita implementación
-    CANCEL_SUBSCRIPTION: '/cancel-subscription', // ❌ 404 - Necesita implementación
-    UPDATE_PAYMENT_METHOD: '/update-payment-method', // ❌ 404 - Necesita implementación
-    WEBHOOKS: '/stripe/webhooks' // Pendiente de verificar
+    CREATE_PAYMENT_INTENT: '/api/create-payment-intent', // ✅ Corregido con prefijo /api
+    CREATE_PAYMENT_INTENT_TEST: '/api/test-create-payment-intent-no-auth', // 🧪 Test endpoint sin auth
+    SIMPLE_TEST: '/api/simple-test', // 🧪 Endpoint simple para verificar despliegue
+    CREATE_SUBSCRIPTION: '/api/create-subscription', // ✅ Corregido con prefijo /api
+    CANCEL_SUBSCRIPTION: '/api/cancel-subscription', // ✅ Corregido con prefijo /api
+    UPDATE_PAYMENT_METHOD: '/api/update-payment-method', // ✅ Corregido con prefijo /api
+    WEBHOOKS: '/api/stripe/webhooks' // ✅ Corregido con prefijo /api
   },
 
   // Endpoints de análisis de imágenes (heredados de CaloriasFotoAPP)

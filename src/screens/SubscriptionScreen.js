@@ -16,7 +16,7 @@ import {
   Chip,
   Divider,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import {
   getSubscriptionPlans,
@@ -24,44 +24,155 @@ import {
   hasActiveSubscription,
   getTrialDaysRemaining
 } from '../services/supabase/subscriptions';
+import { ensureUserProfile, getCurrentUser } from '../services/supabase/auth';
 import { apiRequest, BACKEND_CONFIG } from '../config/backend';
 
 const SubscriptionScreen = ({ navigation }) => {
+  console.log('🎬 SUBS - SUBSCRIPTION SCREEN RENDERIZÁNDOSE');
+  console.log('🎬 SUBS - Navigation object exists:', !!navigation);
+
+  useEffect(() => {
+    loadSubscriptionData();
+  }, []);
+
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);
   const [hasActive, setHasActive] = useState(false);
   const [trialDays, setTrialDays] = useState(null);
+  const [userRegion, setUserRegion] = useState('MX'); // Default a México
+  const [isYearly, setIsYearly] = useState(false); // Toggle mensual/anual
 
   useEffect(() => {
+    console.log('🚀 SUBS - USEEFFECT EJECUTÁNDOSE EN SUBSCRIPTION SCREEN');
+    console.log('🚀 SUBS - Iniciando llamada a loadSubscriptionData');
     loadSubscriptionData();
   }, []);
+
+  // Detectar región del usuario
+  const detectUserRegion = async () => {
+    try {
+      // Método 1: Usar Intl.DateTimeFormat para detectar zona horaria
+      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      console.log('🌎 Zona horaria detectada:', timezone);
+
+      // Método 2: Usar fetch a un servicio de geolocalización
+      try {
+        const response = await fetch('https://ipapi.co/json/', { timeout: 5000 });
+        const data = await response.json();
+        console.log('🌎 Geolocalización detectada:', data);
+
+        if (data.country_code) {
+          const region = data.country_code === 'MX' ? 'MX' : 'US';
+          console.log('✅ Región detectada:', region);
+          setUserRegion(region);
+          return region;
+        }
+      } catch (geoError) {
+        console.warn('⚠️ Error detectando geolocalización:', geoError);
+      }
+
+      // Fallback: detectar por zona horaria
+      const mexicanTimezones = [
+        'America/Mexico_City', 'America/Cancun', 'America/Merida',
+        'America/Monterrey', 'America/Chihuahua', 'America/Hermosillo',
+        'America/Mazatlan', 'America/Tijuana'
+      ];
+
+      if (mexicanTimezones.includes(timezone)) {
+        console.log('✅ Región detectada por timezone: MX');
+        setUserRegion('MX');
+        return 'MX';
+      } else {
+        console.log('✅ Región detectada por timezone: US');
+        setUserRegion('US');
+        return 'US';
+      }
+    } catch (error) {
+      console.error('❌ Error detectando región:', error);
+      // Default a México
+      setUserRegion('MX');
+      return 'MX';
+    }
+  };
 
   const loadSubscriptionData = async () => {
     try {
       setLoading(true);
+      console.log('🔄 SUBS - Iniciando carga de datos de suscripción');
+
+      // Detectar región del usuario
+      const region = await detectUserRegion();
+
+      // Asegurar que el usuario tiene perfil
+      console.log('🔄 SUBS - Verificando perfil de usuario...');
+      const currentUser = await getCurrentUser();
+      if (currentUser) {
+        console.log('🔄 SUBS - Usuario autenticado, asegurando perfil...');
+        await ensureUserProfile(currentUser);
+        console.log('✅ SUBS - Perfil de usuario verificado');
+      }
 
       // Cargar planes disponibles
+      console.log('🔄 SUBS - Cargando planes...');
       const plansData = await getSubscriptionPlans();
-      setPlans(plansData);
+      console.log('✅ SUBS - Planes cargados:', plansData);
+      console.log('📊 SUBS - Número de planes:', plansData?.length || 0);
+
+      // Filtrar plan para la región del usuario
+      const regionPlan = plansData.find(plan =>
+        (region === 'MX' && plan.name.includes('México')) ||
+        (region === 'US' && plan.name.includes('USA'))
+      );
+
+      if (regionPlan) {
+        // Crear plan unificado con precios mensuales y anuales
+        const unifiedPlan = {
+          ...regionPlan,
+          planId: regionPlan.id,
+          monthlyPrice: regionPlan.price_monthly,
+          yearlyPrice: regionPlan.price_yearly,
+          currency: region === 'MX' ? 'MXN' : 'USD',
+          region: region,
+          monthlyPriceId: regionPlan.stripe_price_id_monthly,
+          yearlyPriceId: regionPlan.stripe_price_id_yearly
+        };
+
+        console.log('🎯 Plan unificado para región:', region, unifiedPlan);
+        setPlans([unifiedPlan]);
+        Alert.alert('Success', `Plan ${region === 'MX' ? 'México' : 'USA'} cargado correctamente`);
+      } else {
+        console.warn('⚠️ No se encontró plan para la región:', region);
+        setPlans(plansData); // Fallback a mostrar todos los planes
+        Alert.alert('Info', 'No se encontró plan específico para tu región. Mostrando todos los planes disponibles.');
+      }
 
       // Verificar suscripción actual
+      console.log('🔄 SUBS - Verificando suscripción activa...');
       const activeSubscription = await hasActiveSubscription();
+      console.log('✅ SUBS - Suscripción activa:', activeSubscription);
       setHasActive(activeSubscription);
 
       if (activeSubscription) {
+        console.log('🔄 SUBS - Obteniendo suscripción del usuario...');
         const subscription = await getUserSubscription();
+        console.log('✅ SUBS - Suscripción obtenida:', subscription);
         setCurrentSubscription(subscription);
       }
 
       // Verificar días de trial
+      console.log('🔄 SUBS - Verificando días de trial...');
       const trialDaysRemaining = await getTrialDaysRemaining();
+      console.log('✅ SUBS - Días de trial:', trialDaysRemaining);
       setTrialDays(trialDaysRemaining);
 
+      console.log('🎉 SUBS - Carga de datos completada exitosamente');
     } catch (error) {
-      console.error('❌ Error cargando datos de suscripción:', error);
-      Alert.alert('Error', 'No se pudieron cargar los planes de suscripción');
+      console.error('❌ SUBS - Error cargando datos de suscripción:', error);
+      console.error('❌ SUBS - Error stack:', error.stack);
+      console.error('❌ SUBS - Error message:', error.message);
+      Alert.alert('Error', `No se pudieron cargar los planes de suscripción: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -89,16 +200,29 @@ const SubscriptionScreen = ({ navigation }) => {
   const createPaymentIntent = async (plan) => {
     try {
       setLoading(true);
+      console.log('💳 Iniciando creación de payment intent para plan:', plan);
 
-      // Llamar a la API para crear el payment intent
-      const response = await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.CREATE_PAYMENT_INTENT, {
+      // Usar precio según selección mensual/anual
+      const selectedPrice = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
+      const selectedPriceId = isYearly ? plan.yearlyPriceId : plan.monthlyPriceId;
+
+      console.log('💰 Precio seleccionado:', selectedPrice, 'Price ID:', selectedPriceId);
+
+      // 🧪 TEMPORAL: Usar endpoint simple mientras se actualiza el servidor
+      console.log('🧪 USANDO ENDPOINT SIMPLE TEMPORALMENTE - SERVIDOR ACTUALIZÁNDOSE');
+      const response = await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.SIMPLE_TEST, {
         method: 'POST',
-        auth: true,
+        auth: false,
         body: JSON.stringify({
-          plan_id: plan.id,
-          price_id: plan.stripe_price_id,
-          amount: plan.price_monthly * 100, // Convertir a centavos
-          currency: 'usd'
+          plan_id: plan.planId,
+          price_id: selectedPriceId,
+          amount: selectedPrice * 100, // Convertir a centavos
+          currency: plan.currency.toLowerCase(),
+          metadata: {
+            app_name: 'recipetuner',
+            region: plan.region,
+            billing_period: isYearly ? 'yearly' : 'monthly'
+          }
         })
       });
 
@@ -204,6 +328,34 @@ const SubscriptionScreen = ({ navigation }) => {
         </Paragraph>
       </View>
 
+      {/* Toggle Mensual/Anual */}
+      <View style={styles.billingToggleContainer}>
+        <Text style={styles.billingToggleLabel}>Período de facturación:</Text>
+        <View style={styles.billingToggle}>
+          <Button
+            mode={!isYearly ? "contained" : "outlined"}
+            onPress={() => setIsYearly(false)}
+            style={[styles.billingButton, !isYearly && styles.activeBillingButton]}
+            compact
+          >
+            Mensual
+          </Button>
+          <Button
+            mode={isYearly ? "contained" : "outlined"}
+            onPress={() => setIsYearly(true)}
+            style={[styles.billingButton, isYearly && styles.activeBillingButton]}
+            compact
+          >
+            Anual
+          </Button>
+        </View>
+        {isYearly && (
+          <Text style={styles.discountText}>
+            🎉 ¡Ahorra hasta 30% con el plan anual!
+          </Text>
+        )}
+      </View>
+
       {/* Current Subscription Status */}
       {hasActive && currentSubscription && (
         <Card style={styles.currentSubscriptionCard}>
@@ -283,9 +435,20 @@ const SubscriptionScreen = ({ navigation }) => {
               </View>
 
               <View style={styles.planPricing}>
-                <Text style={styles.planPrice}>${plan.price_monthly}</Text>
-                <Text style={styles.planPeriod}>/mes</Text>
+                <Text style={styles.planPrice}>
+                  {plan.currency} ${isYearly ? plan.yearlyPrice : plan.monthlyPrice}
+                </Text>
+                <Text style={styles.planPeriod}>
+                  {isYearly ? '/año' : '/mes'}
+                </Text>
               </View>
+
+              {/* Mostrar precio mensual equivalente si es anual */}
+              {isYearly && (
+                <Text style={styles.monthlyEquivalent}>
+                  Equivale a ${(plan.yearlyPrice / 12).toFixed(2)} {plan.currency}/mes
+                </Text>
+              )}
 
               <Paragraph style={styles.planDescription}>
                 {plan.description}
@@ -293,15 +456,19 @@ const SubscriptionScreen = ({ navigation }) => {
 
               <View style={styles.planFeatures}>
                 <Text style={styles.featuresTitle}>Características:</Text>
-                {plan.features?.map((feature, index) => (
+                {/* Debug log para features */}
+                {console.log('🔍 RENDERING PLAN:', plan.name, 'Features:', plan.features, 'Type:', typeof plan.features, 'IsArray:', Array.isArray(plan.features))}
+
+                {/* Validación defensiva para features */}
+                {Array.isArray(plan.features) && plan.features.map((feature, index) => (
                   <View key={index} style={styles.featureItem}>
                     <Icon name="check" size={16} color="#4CAF50" />
                     <Text style={styles.featureText}>{feature}</Text>
                   </View>
                 ))}
 
-                {/* Features por defecto si no hay en la base de datos */}
-                {!plan.features && (
+                {/* Features por defecto si no hay en la base de datos o si no es array */}
+                {(!Array.isArray(plan.features) || plan.features.length === 0) && (
                   <>
                     <View style={styles.featureItem}>
                       <Icon name="check" size={16} color="#4CAF50" />
@@ -577,6 +744,44 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#4B5563',
     flex: 1,
+  },
+  // Estilos para toggle mensual/anual
+  billingToggleContainer: {
+    margin: 20,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  billingToggleLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 10,
+  },
+  billingToggle: {
+    flexDirection: 'row',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    padding: 4,
+  },
+  billingButton: {
+    minWidth: 80,
+    marginHorizontal: 2,
+  },
+  activeBillingButton: {
+    elevation: 2,
+  },
+  discountText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#059669',
+    fontWeight: '500',
+  },
+  monthlyEquivalent: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 10,
+    fontStyle: 'italic',
   },
 });
 
