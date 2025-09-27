@@ -72,7 +72,7 @@ async def get_current_user(request: Request):
 @router.post("/create-subscription")
 async def create_subscription(
     request: CreateSubscriptionRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Crear nueva suscripción en Stripe
@@ -135,7 +135,7 @@ async def create_subscription(
 @router.post("/cancel-subscription")
 async def cancel_subscription(
     request: CancelSubscriptionRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Cancelar suscripción existente
@@ -184,7 +184,7 @@ async def cancel_subscription(
 @router.post("/create-payment-intent")
 async def create_payment_intent(
     request: CreatePaymentIntentRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Crear Payment Intent para procesar pago
@@ -233,7 +233,7 @@ async def create_payment_intent(
 @router.post("/update-payment-method")
 async def update_payment_method(
     request: UpdatePaymentMethodRequest,
-    current_user = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Actualizar método de pago de una suscripción
@@ -358,6 +358,54 @@ async def get_or_create_stripe_customer(user_data: Dict[str, Any]):
     except Exception as e:
         logger.error(f"❌ Error gestionando customer: {e}")
         raise
+
+
+# ================== TEST ENDPOINT SIN AUTH ==================
+
+@router.post("/test-create-payment-intent-no-auth")
+async def test_create_payment_intent_no_auth(
+    request: CreatePaymentIntentRequest
+):
+    """
+    TEST: Crear Payment Intent SIN autenticación para debugging
+    """
+    try:
+        logger.info(f"🧪 TEST: Creando payment intent SIN auth")
+        logger.info(f"🧪 TEST: Request data: {request}")
+
+        # Crear Payment Intent básico sin customer
+        payment_intent = stripe.PaymentIntent.create(
+            amount=request.amount,
+            currency=request.currency,
+            metadata={
+                **request.metadata,
+                "app_name": "recipetuner",
+                "test_mode": "true",
+                "plan_id": request.plan_id or "",
+                "price_id": request.price_id or "",
+                "created_at": datetime.utcnow().isoformat()
+            }
+        )
+
+        logger.info(f"✅ TEST: Payment Intent creado: {payment_intent.id}")
+
+        return {
+            "success": True,
+            "payment_intent_id": payment_intent.id,
+            "client_secret": payment_intent.client_secret,
+            "amount": payment_intent.amount,
+            "currency": payment_intent.currency,
+            "status": payment_intent.status,
+            "test_mode": True
+        }
+
+    except stripe.error.StripeError as e:
+        logger.error(f"❌ TEST: Error de Stripe: {e}")
+        raise HTTPException(status_code=500, detail=f"Error de Stripe: {str(e)}")
+
+    except Exception as e:
+        logger.error(f"❌ TEST: Error inesperado: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 async def get_price_id(plan_id: str, is_yearly: bool):
     """Obtener price_id de Stripe basado en plan y frecuencia"""

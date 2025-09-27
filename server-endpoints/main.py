@@ -87,7 +87,7 @@ async def root():
     """Endpoint raíz"""
     return {
         "message": "🍳 RecipeTuner API Server",
-        "version": "1.0.0",
+        "version": "1.0.1",
         "status": "running",
         "timestamp": datetime.now().isoformat(),
         "docs": "/docs"
@@ -115,6 +115,19 @@ async def health_check():
 
 # Incluir routers
 app.include_router(stripe_router, prefix="/api", tags=["Stripe Subscriptions"])
+
+@app.get("/debug/routes")
+async def debug_routes():
+    """Debug: Mostrar todas las rutas registradas"""
+    routes = []
+    for route in app.routes:
+        if hasattr(route, 'methods'):
+            routes.append({
+                "path": route.path,
+                "methods": list(route.methods),
+                "name": getattr(route, 'name', 'Unknown')
+            })
+    return {"registered_routes": routes}
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
