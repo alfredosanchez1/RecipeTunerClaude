@@ -70,7 +70,7 @@ REQUIRED_ENV_VARS = [
     "STRIPE_WEBHOOK_SECRET",
     "OPENAI_API_KEY",
     "SUPABASE_URL",
-    "SUPABASE_ANON_KEY"
+    "SUPABASE_SERVICE_ROLE_KEY"  # Solo esta es realmente necesaria para el servidor
 ]
 
 @app.on_event("startup")
