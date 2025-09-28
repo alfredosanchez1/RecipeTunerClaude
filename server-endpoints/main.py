@@ -180,6 +180,64 @@ async def simple_test():
         }
     }
 
+@app.post("/api/test-stripe-simple")
+async def test_stripe_simple():
+    """Test simple de conexión con Stripe - sin crear Payment Intent"""
+    try:
+        import stripe
+
+        # Configurar Stripe
+        stripe_key = os.getenv("STRIPE_SECRET_KEY")
+
+        if not stripe_key:
+            return {
+                "success": False,
+                "error": "STRIPE_SECRET_KEY not found",
+                "message": "Variable de entorno no configurada"
+            }
+
+        # Verificar formato de la clave
+        if not stripe_key.startswith("sk_"):
+            return {
+                "success": False,
+                "error": "Invalid Stripe key format",
+                "message": "La clave debe empezar con 'sk_'"
+            }
+
+        stripe.api_key = stripe_key
+
+        # Test simple: obtener info de la cuenta (no crea nada)
+        try:
+            account = stripe.Account.retrieve()
+            return {
+                "success": True,
+                "message": "Stripe conectado correctamente",
+                "account_id": account.id,
+                "country": account.country,
+                "currency": account.default_currency,
+                "test_mode": not stripe_key.startswith("sk_live_")
+            }
+        except stripe.error.AuthenticationError:
+            return {
+                "success": False,
+                "error": "Authentication failed",
+                "message": "Clave de Stripe inválida o expirada"
+            }
+        except Exception as stripe_error:
+            return {
+                "success": False,
+                "error": f"Stripe error: {str(stripe_error)}",
+                "message": "Error específico de Stripe"
+            }
+
+    except Exception as e:
+        logger.error(f"❌ Error en test de Stripe: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "message": "Error interno del servidor"
+        }
+
 @app.post("/api/test-stripe-payment-intent")
 async def test_stripe_payment_intent(request: Request):
     """Test endpoint para crear Payment Intent básico sin auth"""
