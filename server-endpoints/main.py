@@ -12,10 +12,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import uvicorn
 
-# Importar nuestros endpoints
+# Configurar logging PRIMERO
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("RecipeTunerAPI")
+
+# Importar nuestros endpoints con manejo de errores
 try:
     from stripe_endpoints import router as stripe_router
     stripe_router_available = True
+    logger.info("✅ stripe_endpoints importado correctamente")
 except ImportError as e:
     logger.error(f"❌ Error importando stripe_endpoints: {e}")
     stripe_router_available = False
@@ -28,16 +36,10 @@ try:
         validate_required_env_vars
     )
     integration_helper_available = True
+    logger.info("✅ integration_helper importado correctamente")
 except ImportError as e:
     logger.error(f"❌ Error importando integration_helper: {e}")
     integration_helper_available = False
-
-# Configurar logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("RecipeTunerAPI")
 
 # Crear aplicación FastAPI
 app = FastAPI(
@@ -160,14 +162,22 @@ async def debug_routes():
             })
     return {"registered_routes": routes}
 
+@app.get("/api/simple-test")
 @app.post("/api/simple-test")
 async def simple_test():
     """Endpoint de prueba simple sin dependencias"""
     return {
         "success": True,
-        "message": "Test endpoint working",
+        "message": "RecipeTuner API funcionando correctamente",
         "timestamp": datetime.now().isoformat(),
-        "server_updated": True
+        "server_updated": True,
+        "version": "1.0.1",
+        "environment": {
+            "stripe_configured": bool(os.getenv("STRIPE_SECRET_KEY")),
+            "openai_configured": bool(os.getenv("OPENAI_API_KEY")),
+            "supabase_configured": bool(os.getenv("SUPABASE_URL")),
+            "port": os.getenv("PORT", "8000")
+        }
     }
 
 @app.post("/api/test-stripe-payment-intent")
