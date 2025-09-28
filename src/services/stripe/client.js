@@ -9,8 +9,8 @@ import { BACKEND_CONFIG, buildApiUrl, getAuthHeaders } from '../../config/backen
 
 // Configuración de Stripe para RecipeTuner
 const STRIPE_CONFIG = {
-  // Stripe publishable key real para RecipeTuner
-  publishableKey: 'pk_live_51RnpLnRbKyoDfUk2NgluRiZWu29rBZ0q71bs6l93fHpJ0TWnDrxb61wKd5aEHtggcM339cU7NEgPHNNpAC1jTDGb00wiWF9jTK',
+  // Stripe publishable key desde variable de entorno
+  publishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY || 'pk_test_placeholder',
   merchantIdentifier: 'com.recipetuner.app', // Para Apple Pay
   urlScheme: 'recipetuner', // Para deep linking
   // Metadata para identificar que es RecipeTuner
@@ -56,34 +56,25 @@ export const useStripe = () => {
 // ===== FUNCIONES DE PAGOS =====
 
 /**
- * Crear Payment Intent para suscripción
+ * Crear Payment Intent para suscripción (TEMPORAL - usando create-subscription)
  */
 export const createPaymentIntent = async (planId, isYearly = false) => {
   try {
-    console.log('💳 Creando Payment Intent para plan:', planId);
+    console.log('💳 [TEMPORAL] Simulando Payment Intent para plan:', planId);
 
-    // Llamar a CaloriasAPI en Render para crear el Payment Intent
-    const response = await fetch(buildApiUrl(BACKEND_CONFIG.STRIPE_ENDPOINTS.CREATE_PAYMENT_INTENT), {
-      method: 'POST',
-      headers: await getAuthHeaders(),
-      body: JSON.stringify({
-        planId,
-        isYearly,
-        metadata: {
-          app_name: 'recipetuner',
-          plan_id: planId,
-          billing_cycle: isYearly ? 'yearly' : 'monthly'
-        }
-      })
-    });
+    // TEMPORAL: Retornar datos simulados hasta que tengamos payment intent real
+    const simulatedPaymentIntent = {
+      success: true,
+      payment_intent_id: `pi_simulation_${Date.now()}`,
+      client_secret: `pi_simulation_${Date.now()}_secret_test`,
+      amount: isYearly ? (planId.includes('mexico') ? 69900 : 3999) : (planId.includes('mexico') ? 8900 : 499),
+      currency: planId.includes('mexico') ? 'mxn' : 'usd',
+      status: 'requires_payment_method',
+      simulation: true
+    };
 
-    if (!response.ok) {
-      throw new Error('Error creating payment intent');
-    }
-
-    const data = await response.json();
-    console.log('✅ Payment Intent creado:', data.client_secret);
-    return data;
+    console.log('✅ Payment Intent simulado creado:', simulatedPaymentIntent.client_secret);
+    return simulatedPaymentIntent;
   } catch (error) {
     console.error('❌ Error creando Payment Intent:', error);
     throw error;
