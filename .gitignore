@@ -21,3 +21,4 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+\n*.key\n*.pem\nconfig/secrets.json
