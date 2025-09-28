@@ -1,9 +1,9 @@
-# Dependencias para RecipeTuner API
+# Dependencias para RecipeTuner API - FIXED COMPATIBILITY
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
 stripe==7.8.0
 python-multipart==0.0.6
 python-dotenv==1.0.0
 pydantic==2.5.0
-httpx==0.24.1
-supabase==2.3.0
+httpx==0.25.2
+supabase==2.3.4
