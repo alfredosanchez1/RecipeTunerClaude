@@ -15,11 +15,11 @@ import {
   Chip,
   Divider,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import { useUser } from '../context/UserContext';
 import { theme } from '../styles/theme';
-import { COOKING_TIME_OPTIONS, DIETARY_RESTRICTION_OPTIONS, CUISINE_OPTIONS, ALLERGY_OPTIONS, INTOLERANCE_OPTIONS } from '../config/preferences';
+import { COOKING_TIME_OPTIONS, DIETARY_RESTRICTION_OPTIONS, DIET_TYPE_OPTIONS, ALLERGY_OPTIONS, INTOLERANCE_OPTIONS, MEDICAL_CONDITIONS, CONDITIONS_REQUIRING_DISCLAIMER } from '../config/preferences';
 
 
 const PreferencesScreen = ({ navigation }) => {
@@ -30,8 +30,9 @@ const PreferencesScreen = ({ navigation }) => {
     dietaryRestrictions: [],
     allergies: [],
     intolerances: [],
-    cuisinePreferences: [],
+    dietType: '',
     cookingTimePreference: 'Medio',
+    medicalConditions: [],
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -172,6 +173,70 @@ const PreferencesScreen = ({ navigation }) => {
     </View>
   );
 
+  const renderMedicalConditionsSection = () => {
+    const hasHighPriorityConditions = formData.medicalConditions?.some(conditionId =>
+      CONDITIONS_REQUIRING_DISCLAIMER.includes(conditionId)
+    );
+
+    return (
+      <View style={styles.medicalSection}>
+        <View style={styles.sectionHeader}>
+          <Icon name="medical-bag" size={24} color="#E91E63" />
+          <Title style={styles.sectionTitle}>Condiciones Médicas</Title>
+        </View>
+        <Text style={styles.medicalSubtitle}>
+          Selecciona condiciones médicas que requieren consideraciones dietéticas específicas:
+        </Text>
+
+        {Object.entries(MEDICAL_CONDITIONS).map(([categoryKey, category]) => (
+          <View key={categoryKey} style={styles.medicalCategory}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryIcon}>{category.icon}</Text>
+              <Text style={styles.categoryTitle}>{category.title}</Text>
+            </View>
+            <View style={styles.conditionChips}>
+              {category.conditions.map((condition) => (
+                <Chip
+                  key={condition.id}
+                  selected={formData.medicalConditions?.includes(condition.id)}
+                  onPress={() => handleToggleArray('medicalConditions', condition.id)}
+                  style={[
+                    styles.medicalChip,
+                    condition.priority === 'high' && styles.highPriorityChip,
+                    formData.medicalConditions?.includes(condition.id) && styles.selectedMedicalChip
+                  ]}
+                  mode="outlined"
+                  disabled={!isEditing}
+                  textStyle={[
+                    styles.chipText,
+                    condition.priority === 'high' && styles.highPriorityText
+                  ]}
+                >
+                  {condition.name}
+                </Chip>
+              ))}
+            </View>
+          </View>
+        ))}
+
+        {hasHighPriorityConditions && (
+          <Card style={styles.disclaimerCard}>
+            <Card.Content>
+              <View style={styles.disclaimerHeader}>
+                <Icon name="alert-circle" size={20} color="#FF5722" />
+                <Text style={styles.disclaimerTitle}>Importante</Text>
+              </View>
+              <Text style={styles.disclaimerText}>
+                Esta adaptación es solo informativa. Consulta siempre con tu médico o nutricionista
+                para dietas específicas de tu condición médica.
+              </Text>
+            </Card.Content>
+          </Card>
+        )}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -276,12 +341,17 @@ const PreferencesScreen = ({ navigation }) => {
 
       <Divider style={styles.divider} />
 
-      {/* Cuisine Preferences */}
-      {renderChipSection(
-        'Preferencias de Cocina',
-        CUISINE_OPTIONS,
-        'cuisinePreferences',
-        'flag',
+      {/* Medical Conditions */}
+      {renderMedicalConditionsSection()}
+
+      <Divider style={styles.divider} />
+
+      {/* Diet Type */}
+      {renderRadioSection(
+        'Tipo de Dieta',
+        DIET_TYPE_OPTIONS,
+        'dietType',
+        'food-variant',
         '#2196F3'
       )}
 
@@ -296,26 +366,18 @@ const PreferencesScreen = ({ navigation }) => {
         '#607D8B'
       )}
 
-      {/* Onboarding Completion */}
-      {!preferences.isOnboardingComplete && (
-        <Card style={styles.onboardingCard}>
-          <Card.Content>
-            <Title style={styles.onboardingTitle}>¡Completa tu Configuración!</Title>
-            <Text style={styles.onboardingDescription}>
-              Una vez que hayas configurado tus preferencias, podrás comenzar a usar la aplicación
-              y recibir recetas personalizadas según tus necesidades.
-            </Text>
-            <Button
-              mode="contained"
-              onPress={handleCompleteOnboarding}
-              icon="check-circle"
-              style={styles.completeButton}
-            >
-              Completar Configuración
-            </Button>
-          </Card.Content>
-        </Card>
-      )}
+      {/* Save Button at Bottom */}
+      <View style={styles.bottomSaveContainer}>
+        <Button
+          mode="contained"
+          onPress={handleSave}
+          icon="content-save"
+          style={styles.bottomSaveButton}
+          disabled={!hasChanges}
+        >
+          Guardar
+        </Button>
+      </View>
 
       {/* Tips */}
       <Card style={styles.tipsCard}>
@@ -463,28 +525,6 @@ const styles = StyleSheet.create({
     marginVertical: 10,
     marginHorizontal: 20,
   },
-  onboardingCard: {
-    margin: 20,
-    marginBottom: 15,
-    backgroundColor: theme.colors.surfaceAlt,
-    borderColor: theme.colors.secondary,
-    elevation: 2,
-  },
-  onboardingTitle: {
-    fontSize: 18,
-    color: theme.colors.text,
-    marginBottom: 10,
-    fontWeight: '600',
-  },
-  onboardingDescription: {
-    fontSize: 14,
-    color: theme.colors.textSecondary,
-    marginBottom: 15,
-    lineHeight: 20,
-  },
-  completeButton: {
-    backgroundColor: theme.colors.secondary,
-  },
   tipsCard: {
     margin: 20,
     marginBottom: 30,
@@ -502,6 +542,88 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: theme.colors.textSecondary,
     lineHeight: 20,
+  },
+  medicalSection: {
+    backgroundColor: '#fff',
+    marginHorizontal: 20,
+    marginBottom: 15,
+    padding: 20,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  medicalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  medicalCategory: {
+    marginBottom: 20,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  categoryIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  categoryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  conditionChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  medicalChip: {
+    marginBottom: 8,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#F9FAFB',
+  },
+  selectedMedicalChip: {
+    backgroundColor: '#E91E63',
+    borderColor: '#E91E63',
+  },
+  highPriorityChip: {
+    borderColor: '#EF4444',
+    borderWidth: 1.5,
+  },
+  highPriorityText: {
+    fontWeight: '600',
+  },
+  disclaimerCard: {
+    marginTop: 15,
+    backgroundColor: '#FFF3E0',
+    borderColor: '#FF8A65',
+    borderWidth: 1,
+  },
+  disclaimerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  disclaimerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FF5722',
+    marginLeft: 8,
+  },
+  disclaimerText: {
+    fontSize: 14,
+    color: '#E65100',
+    lineHeight: 20,
+  },
+  bottomSaveContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+  },
+  bottomSaveButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 8,
   },
 });
 

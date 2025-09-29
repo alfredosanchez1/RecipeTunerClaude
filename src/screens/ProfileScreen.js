@@ -1,132 +1,88 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   ScrollView,
   StyleSheet,
+  TouchableOpacity,
   Alert,
 } from 'react-native';
 import {
   Card,
   Title,
   Paragraph,
-  Button,
   Text,
   useTheme,
   Avatar,
   Divider,
-  List,
-  Switch,
+  Chip,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import { useUser } from '../context/UserContext';
+import { useAuth } from '../context/AuthContext';
 
 const ProfileScreen = ({ navigation }) => {
+  console.log('🔍 PROFILE SCREEN - Cargando ProfileScreen');
+  console.log('🔍 PROFILE SCREEN - Navigation object:', !!navigation);
+  console.log('🔍 PROFILE SCREEN - Este log debería aparecer al tocar la pestaña Perfil');
   const theme = useTheme();
-  const { user, preferences, saveUserData, savePreferences, resetUserData } = useUser();
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { preferences } = useUser();
+  const { user: authUser } = useAuth();
 
-  const handleEditProfile = () => {
-    // Implementar edición de perfil
-    Alert.alert('Editar Perfil', 'Función en desarrollo');
-  };
+  const renderPreferenceSection = (title, items, icon, emptyMessage) => {
+    if (!items || items.length === 0) {
+      return (
+        <View style={styles.preferenceSection}>
+          <View style={styles.preferenceSectionHeader}>
+            <Icon name={icon} size={20} color={theme.colors.primary} />
+            <Title style={styles.preferenceSectionTitle}>{title}</Title>
+          </View>
+          <Text style={styles.emptyMessage}>{emptyMessage}</Text>
+        </View>
+      );
+    }
 
-  const handleEditPreferences = () => {
-    navigation.navigate('Preferences');
-  };
-
-  const handleExportData = () => {
-    Alert.alert(
-      'Exportar Datos',
-      '¿Deseas exportar tus recetas y preferencias?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Exportar', onPress: () => {
-          Alert.alert('Éxito', 'Datos exportados correctamente');
-        }},
-      ]
+    return (
+      <View style={styles.preferenceSection}>
+        <View style={styles.preferenceSectionHeader}>
+          <Icon name={icon} size={20} color={theme.colors.primary} />
+          <Title style={styles.preferenceSectionTitle}>{title}</Title>
+        </View>
+        <View style={styles.chipContainer}>
+          {items.map((item, index) => (
+            <Chip
+              key={index}
+              mode="outlined"
+              style={styles.preferenceChip}
+              textStyle={styles.chipText}
+            >
+              {item}
+            </Chip>
+          ))}
+        </View>
+      </View>
     );
-  };
-
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      'Eliminar Cuenta',
-      '¿Estás seguro de que deseas eliminar tu cuenta? Esta acción no se puede deshacer.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Eliminar', style: 'destructive', onPress: () => {
-          resetUserData();
-          Alert.alert('Cuenta Eliminada', 'Tu cuenta ha sido eliminada');
-        }},
-      ]
-    );
-  };
-
-  const handleLogout = () => {
-    Alert.alert(
-      'Cerrar Sesión',
-      '¿Estás seguro de que deseas cerrar sesión?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Cerrar Sesión', onPress: resetUserData },
-      ]
-    );
-  };
-
-  const toggleNotifications = () => {
-    setNotificationsEnabled(!notificationsEnabled);
   };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+
       {/* Profile Header */}
       <Card style={styles.profileCard}>
         <Card.Content style={styles.profileContent}>
           <Avatar.Text
             size={80}
-            label={user?.name?.charAt(0)?.toUpperCase() || 'U'}
+            label={authUser?.user_metadata?.first_name?.charAt(0)?.toUpperCase() || authUser?.email?.charAt(0)?.toUpperCase() || 'U'}
             style={styles.avatar}
             color="#fff"
           />
           <View style={styles.profileInfo}>
             <Title style={styles.userName}>
-              {user?.name || 'Usuario'}
+              {authUser?.user_metadata?.full_name || 'Usuario'}
             </Title>
             <Paragraph style={styles.userEmail}>
-              {user?.email || 'usuario@ejemplo.com'}
+              {authUser?.email || 'usuario@ejemplo.com'}
             </Paragraph>
-            <Button
-              mode="outlined"
-              onPress={handleEditProfile}
-              style={styles.editButton}
-              compact
-            >
-              Editar Perfil
-            </Button>
-          </View>
-        </Card.Content>
-      </Card>
-
-      {/* Quick Stats */}
-      <Card style={styles.statsCard}>
-        <Card.Content>
-          <Title style={styles.statsTitle}>Resumen de Actividad</Title>
-          <View style={styles.statsGrid}>
-            <View style={styles.statItem}>
-              <Icon name="food-fork-drink" size={30} color="#4CAF50" />
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Recetas</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Icon name="robot" size={30} color="#FF9800" />
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Adaptadas</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Icon name="star" size={30} color="#2196F3" />
-              <Text style={styles.statNumber}>0</Text>
-              <Text style={styles.statLabel}>Favoritas</Text>
-            </View>
           </View>
         </Card.Content>
       </Card>
@@ -135,162 +91,95 @@ const ProfileScreen = ({ navigation }) => {
       <Card style={styles.preferencesCard}>
         <Card.Content>
           <View style={styles.cardHeader}>
-            <Title style={styles.cardTitle}>Preferencias Dietéticas</Title>
-            <Button
-              mode="text"
-              onPress={handleEditPreferences}
-              compact
-            >
-              Editar
-            </Button>
+            <Icon name="account-cog" size={24} color={theme.colors.primary} />
+            <Title style={styles.cardTitle}>Resumen de Preferencias</Title>
           </View>
-          
-          <View style={styles.preferencesList}>
-            <View style={styles.preferenceItem}>
-              <Icon name="food-apple" size={20} color="#4CAF50" />
-              <Text style={styles.preferenceLabel}>Restricciones:</Text>
-              <Text style={styles.preferenceValue}>
-                {preferences.dietaryRestrictions?.length > 0 
-                  ? preferences.dietaryRestrictions.join(', ')
-                  : 'Sin restricciones'
-                }
-              </Text>
-            </View>
+          <Divider style={styles.headerDivider} />
 
-            <View style={styles.preferenceItem}>
-              <Icon name="alert-circle" size={20} color="#F44336" />
-              <Text style={styles.preferenceLabel}>Alergias:</Text>
-              <Text style={styles.preferenceValue}>
-                {preferences.allergies?.length > 0 
-                  ? preferences.allergies.join(', ')
-                  : 'Sin alergias'
-                }
-              </Text>
-            </View>
+          {renderPreferenceSection(
+            'Restricciones Dietéticas',
+            preferences?.dietaryRestrictions,
+            'food-off',
+            'Ninguna restricción dietética seleccionada'
+          )}
 
-            <View style={styles.preferenceItem}>
-              <Icon name="fire" size={20} color="#FF9800" />
-              <Text style={styles.preferenceLabel}>Nivel de picante:</Text>
-              <Text style={styles.preferenceValue}>
-                {preferences.spiceLevel || 'No especificado'}
-              </Text>
-            </View>
+          {renderPreferenceSection(
+            'Alergias',
+            preferences?.allergies,
+            'alert-circle',
+            'Ninguna alergia registrada'
+          )}
 
-            <View style={styles.preferenceItem}>
-              <Icon name="clock" size={20} color="#607D8B" />
-              <Text style={styles.preferenceLabel}>Tiempo preferido:</Text>
-              <Text style={styles.preferenceValue}>
-                {preferences.cookingTime || 'No especificado'}
-              </Text>
-            </View>
+          {renderPreferenceSection(
+            'Intolerancias',
+            preferences?.intolerances,
+            'minus-circle',
+            'Ninguna intolerancia registrada'
+          )}
 
-            <View style={styles.preferenceItem}>
-              <Icon name="account-group" size={20} color="#4CAF50" />
-              <Text style={styles.preferenceLabel}>Porciones:</Text>
-              <Text style={styles.preferenceValue}>
-                {preferences.servings || 'No especificado'}
+          {renderPreferenceSection(
+            'Condiciones Médicas',
+            preferences?.medicalConditions,
+            'medical-bag',
+            'Ninguna condición médica registrada'
+          )}
+
+          {preferences?.dietType && (
+            <View style={styles.preferenceSection}>
+              <View style={styles.preferenceSectionHeader}>
+                <Icon name="food-apple" size={20} color={theme.colors.primary} />
+                <Title style={styles.preferenceSectionTitle}>Tipo de Dieta</Title>
+              </View>
+              <Text style={styles.singlePreference}>
+                {preferences.dietType}
               </Text>
             </View>
-          </View>
+          )}
+
+          {preferences?.cookingTimePreference && (
+            <View style={styles.preferenceSection}>
+              <View style={styles.preferenceSectionHeader}>
+                <Icon name="clock" size={20} color={theme.colors.primary} />
+                <Title style={styles.preferenceSectionTitle}>Tiempo de Cocción</Title>
+              </View>
+              <Text style={styles.singlePreference}>
+                {preferences.cookingTimePreference}
+              </Text>
+            </View>
+          )}
+
         </Card.Content>
       </Card>
 
-      {/* Settings */}
-      <Card style={styles.settingsCard}>
-        <Card.Content>
-          <Title style={styles.cardTitle}>Configuración</Title>
-          
-          <List.Item
-            title="Notificaciones"
-            description="Recibir alertas sobre nuevas recetas y adaptaciones"
-            left={(props) => <List.Icon {...props} icon="bell" />}
-            right={() => (
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={toggleNotifications}
-                color={theme.colors.primary}
-              />
-            )}
-          />
+      {/* Action Buttons */}
+      <View style={styles.actionButtonsContainer}>
+        <TouchableOpacity
+          style={[styles.actionButton, styles.subscriptionButton]}
+          onPress={() => navigation.navigate('Subscription')}
+        >
+          <Icon name="crown" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Suscripciones</Text>
+        </TouchableOpacity>
 
-          <Divider />
+        <TouchableOpacity
+          style={[styles.actionButton, styles.preferencesButton]}
+          onPress={() => navigation.navigate('Preferences')}
+        >
+          <Icon name="cog" size={20} color="#fff" />
+          <Text style={styles.actionButtonText}>Preferencias</Text>
+        </TouchableOpacity>
+      </View>
 
-          <List.Item
-            title="Exportar Datos"
-            description="Descargar tus recetas y preferencias"
-            left={(props) => <List.Icon {...props} icon="download" />}
-            onPress={handleExportData}
-          />
+      {/* Back to Home Button */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.navigate('HomeMain')}
+      >
+        <Icon name="arrow-left" size={20} color="#fff" />
+        <Text style={styles.backButtonText}>Volver al Inicio</Text>
+      </TouchableOpacity>
 
-          <Divider />
-
-          <List.Item
-            title="Ayuda y Soporte"
-            description="Obtener ayuda y contactar soporte"
-            left={(props) => <List.Icon {...props} icon="help-circle" />}
-            onPress={() => Alert.alert('Ayuda', 'Función en desarrollo')}
-          />
-
-          <Divider />
-
-          <List.Item
-            title="Suscripciones"
-            description="Gestionar tu plan de suscripción"
-            left={(props) => <List.Icon {...props} icon="crown" />}
-            onPress={() => navigation.navigate('Subscription')}
-          />
-
-          <Divider />
-
-          <List.Item
-            title="Acerca de"
-            description="Información de la aplicación"
-            left={(props) => <List.Icon {...props} icon="information" />}
-            onPress={() => Alert.alert('Acerca de', 'RecipeTuner v1.0.0')}
-          />
-        </Card.Content>
-      </Card>
-
-      {/* Account Actions */}
-      <Card style={styles.accountCard}>
-        <Card.Content>
-          <Title style={styles.cardTitle}>Cuenta</Title>
-          
-          <Button
-            mode="outlined"
-            onPress={handleLogout}
-            icon="logout"
-            style={styles.logoutButton}
-            textColor={theme.colors.error}
-          >
-            Cerrar Sesión
-          </Button>
-
-          <Button
-            mode="outlined"
-            onPress={handleDeleteAccount}
-            icon="delete"
-            style={styles.deleteButton}
-            textColor={theme.colors.error}
-          >
-            Eliminar Cuenta
-          </Button>
-        </Card.Content>
-      </Card>
-
-      {/* App Info */}
-      <Card style={styles.infoCard}>
-        <Card.Content>
-          <View style={styles.appInfo}>
-            <Icon name="chef-hat" size={40} color={theme.colors.primary} />
-            <Title style={styles.appTitle}>RecipeTuner</Title>
-            <Paragraph style={styles.appVersion}>Versión 1.0.0</Paragraph>
-            <Paragraph style={styles.appDescription}>
-              Personaliza tus recetas con inteligencia artificial según tus necesidades dietéticas
-            </Paragraph>
-          </View>
-        </Card.Content>
-      </Card>
+      <View style={styles.bottomSpacing} />
     </ScrollView>
   );
 };
@@ -303,66 +192,28 @@ const styles = StyleSheet.create({
   profileCard: {
     margin: 20,
     marginBottom: 15,
-    elevation: 3,
-  },
-  profileContent: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  avatar: {
-    backgroundColor: '#10B981',
-    marginBottom: 15,
-  },
-  profileInfo: {
-    alignItems: 'center',
-  },
-  userName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 5,
-    textAlign: 'center',
-    color: '#1F2937',
-  },
-  userEmail: {
-    fontSize: 16,
-    color: '#4B5563',
-    marginBottom: 15,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  editButton: {
-    borderColor: '#10B981',
-  },
-  statsCard: {
-    margin: 20,
-    marginBottom: 15,
     elevation: 2,
   },
-  statsTitle: {
-    fontSize: 18,
-    marginBottom: 20,
-    color: '#1F2937',
-    fontWeight: '600',
-  },
-  statsGrid: {
+  profileContent: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
     alignItems: 'center',
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginTop: 8,
-    marginBottom: 4,
-    color: '#1F2937',
+  avatar: {
+    backgroundColor: '#6366F1',
+    marginRight: 16,
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#4B5563',
-    textAlign: 'center',
-    lineHeight: 16,
+  profileInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#6B7280',
   },
   preferencesCard: {
     margin: 20,
@@ -371,80 +222,105 @@ const styles = StyleSheet.create({
   },
   cardHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 15,
+    marginBottom: 10,
   },
   cardTitle: {
+    marginLeft: 10,
     fontSize: 18,
-    marginBottom: 15,
     color: '#1F2937',
-    fontWeight: '600',
   },
-  preferencesList: {
-    gap: 15,
+  headerDivider: {
+    marginBottom: 20,
   },
-  preferenceItem: {
+  preferenceSection: {
+    marginBottom: 24,
+  },
+  preferenceSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  preferenceLabel: {
+  preferenceSectionTitle: {
+    marginLeft: 8,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  chipContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  preferenceChip: {
+    marginBottom: 8,
+    backgroundColor: '#F3F4F6',
+    borderColor: '#D1D5DB',
+  },
+  chipText: {
+    fontSize: 12,
+    color: '#374151',
+  },
+  emptyMessage: {
     fontSize: 14,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
+    paddingLeft: 28,
+  },
+  singlePreference: {
+    fontSize: 14,
+    color: '#374151',
+    paddingLeft: 28,
     fontWeight: '500',
-    color: '#1F2937',
-    marginLeft: 15,
-    marginRight: 10,
-    minWidth: 120,
   },
-  preferenceValue: {
-    fontSize: 14,
-    color: '#4B5563',
+  actionButtonsContainer: {
+    flexDirection: 'row',
+    marginHorizontal: 20,
+    marginTop: 20,
+    gap: 12,
+  },
+  actionButton: {
     flex: 1,
-    lineHeight: 20,
-  },
-  settingsCard: {
-    margin: 20,
-    marginBottom: 15,
-    elevation: 2,
-  },
-  accountCard: {
-    margin: 20,
-    marginBottom: 15,
-    elevation: 2,
-  },
-  logoutButton: {
-    marginBottom: 10,
-    borderColor: '#DC2626',
-  },
-  deleteButton: {
-    borderColor: '#F44336',
-  },
-  infoCard: {
-    margin: 20,
-    marginBottom: 30,
-    elevation: 2,
-  },
-  appInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    elevation: 2,
   },
-  appTitle: {
-    fontSize: 20,
-    marginTop: 15,
-    marginBottom: 5,
-    textAlign: 'center',
+  subscriptionButton: {
+    backgroundColor: '#FF9800',
   },
-  appVersion: {
+  preferencesButton: {
+    backgroundColor: '#4CAF50',
+  },
+  actionButtonText: {
+    color: '#fff',
     fontSize: 14,
-    color: '#666',
-    marginBottom: 10,
-    textAlign: 'center',
+    fontWeight: '600',
+    marginLeft: 8,
   },
-  appDescription: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6366F1',
+    marginHorizontal: 20,
+    marginVertical: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    elevation: 2,
+  },
+  backButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  bottomSpacing: {
+    height: 20,
   },
 });
 
