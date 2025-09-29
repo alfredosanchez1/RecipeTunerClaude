@@ -53,7 +53,8 @@ export const createRecipe = async (recipeData) => {
       shopping_notes: recipeData.shoppingNotes || [],
       alternative_cooking_methods: recipeData.alternativeCookingMethods || null,
       is_adapted: recipeData.isAdapted || false,
-      original_recipe_id: recipeData.originalRecipeId || null,
+      // No pasar original_recipe_id si es un ObjectId de Realm (no es UUID válido)
+      // original_recipe_id: null, // Supabase generará su propio UUID
       user_comments: recipeData.userComments || null,
       user_preferences: recipeData.userPreferences || null,
       adaptation_summary: recipeData.adaptationSummary || null,

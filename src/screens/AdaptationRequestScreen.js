@@ -17,24 +17,56 @@ import {
   ActivityIndicator,
   Chip,
 } from 'react-native-paper';
-import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import { useUser } from '../context/UserContext';
 import { useRecipe } from '../context/RecipeContext';
+import { useSubscription } from '../context/SubscriptionContext';
 import aiService from '../services/aiService';
+import recipeValidationService from '../services/recipeValidationService';
+import { MEDICAL_CONDITIONS_LIST, MEDICAL_CONDITION_PROMPTS } from '../config/preferences';
 
 const AdaptationRequestScreen = ({ navigation, route }) => {
   const theme = useTheme();
   const { preferences } = useUser();
   const { saveRecipeWithAdaptation } = useRecipe();
+  const {
+    canUseAI,
+    subscriptionStatus,
+    remainingTrialDays,
+    isLoading: subscriptionLoading
+  } = useSubscription();
 
   // Recibir datos de la receta desde la pantalla anterior
   const { recipeData, source } = route.params || {};
 
   const [userComments, setUserComments] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [portionAdjustment, setPortionAdjustment] = useState('original');
+  const [customPortions, setCustomPortions] = useState('');
 
-  const generateAdaptationPrompt = (originalRecipe, userPreferences, userComment = "") => {
+  const getMedicalConditionsText = (medicalConditionIds) => {
+    if (!medicalConditionIds || medicalConditionIds.length === 0) return 'Ninguna';
+
+    const conditionNames = medicalConditionIds.map(id => {
+      const condition = MEDICAL_CONDITIONS_LIST.find(c => c.id === id);
+      return condition ? condition.name : id;
+    });
+
+    return conditionNames.join(', ');
+  };
+
+  const getMedicalConditionPrompts = (medicalConditionIds) => {
+    if (!medicalConditionIds || medicalConditionIds.length === 0) return '';
+
+    const prompts = medicalConditionIds
+      .map(id => MEDICAL_CONDITION_PROMPTS[id])
+      .filter(prompt => prompt);
+
+    return prompts.length > 0 ? prompts.join(' ') : '';
+  };
+
+  const generateAdaptationPrompt = (originalRecipe, userPreferences, userComment = "", portionAdjust = 'original', customPortions = '') => {
     return `
 Eres un chef experto y nutricionista especializado en adaptar recetas. Tu tarea es modificar la receta proporcionada para que se ajuste perfectamente a las necesidades específicas del usuario.
 
@@ -42,9 +74,11 @@ Eres un chef experto y nutricionista especializado en adaptar recetas. Tu tarea 
 RESTRICCIONES DIETÉTICAS: ${userPreferences.dietaryRestrictions?.join(', ') || 'Ninguna'}
 ALERGIAS ALIMENTARIAS: ${userPreferences.allergies?.join(', ') || 'Ninguna'}
 INTOLERANCIAS: ${userPreferences.intolerances?.join(', ') || 'Ninguna'}
+CONDICIONES MÉDICAS: ${getMedicalConditionsText(userPreferences.medicalConditions)}
 PREFERENCIAS DE COCINA: ${userPreferences.preferredCuisines?.join(', ') || 'Ninguna'}
 NIVEL DE HABILIDAD: ${userPreferences.cookingSkillLevel || 'Intermedio'}
 TAMAÑO DE PORCIÓN PREFERIDO: ${userPreferences.servingSize || 'Sin preferencia'} personas
+AJUSTE DE PORCIONES SOLICITADO: ${portionAdjustment === 'original' ? 'Mantener como original' : portionAdjustment === 'custom' ? customPortions + ' porciones' : portionAdjustment + ' porciones'}
 INGREDIENTES QUE NO LE GUSTAN: ${userPreferences.dislikedIngredients?.join(', ') || 'Ninguno'}
 COMENTARIO ADICIONAL DEL USUARIO: "${userComment}"
 
@@ -57,7 +91,7 @@ ${JSON.stringify(originalRecipe, null, 2)}
 3. SUSTITUCIONES INTELIGENTES: Usa ingredientes que mantengan textura y sabor similares
 4. OPTIMIZA NUTRICIÓN: Mejora el perfil nutricional cuando sea posible
 5. SÉ ESPECÍFICO: Indica cantidades exactas y técnicas específicas
-6. AJUSTA PORCIONES: Adapta la receta al tamaño de porción preferido del usuario
+6. AJUSTA PORCIONES: ${portionAdjust === 'original' ? 'Mantener las porciones originales de la receta sin cambios' : `Escalar TODAS las cantidades de ingredientes proporcionalmente para ${portionAdjust === 'custom' ? customPortions : portionAdjust} porciones. Ajustar también los tiempos de cocción si es necesario.`}
 
 === REGLAS DE SUSTITUCIÓN ===
 - Para VEGANOS: Sin productos animales (carne, lácteos, huevos, miel, gelatina)
@@ -67,6 +101,9 @@ ${JSON.stringify(originalRecipe, null, 2)}
 - Para DIABÉTICOS: Evitar azúcares añadidos, usar edulcorantes naturales
 - Para HIPERTENSOS: Reducir sodio a menos de 140mg por porción
 - Para INTOLERANCIA A LACTOSA: Usar alternativas sin lactosa
+
+=== CONSIDERACIONES MÉDICAS ESPECÍFICAS ===
+${getMedicalConditionPrompts(userPreferences.medicalConditions)}
 
 Responde ÚNICAMENTE en este formato JSON exacto (sin texto adicional):
 
@@ -151,17 +188,39 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
   };
 
   const handleAdaptRecipe = async () => {
+    // Verificar permisos de suscripción antes de proceder
+    if (subscriptionLoading) {
+      Alert.alert('Verificando suscripción', 'Por favor espera un momento...');
+      return;
+    }
+
+    if (!canUseAI) {
+      const message = subscriptionStatus === 'trial'
+        ? `Tu período de prueba ha expirado. Necesitas una suscripción activa para usar la adaptación con IA.`
+        : subscriptionStatus === 'expired'
+        ? 'Tu suscripción ha expirado. Reactívala para continuar usando la adaptación con IA.'
+        : 'Necesitas una suscripción activa para usar la adaptación con IA.';
+
+      Alert.alert('Suscripción requerida', message, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Ver suscripciones', onPress: () => navigation.navigate('Subscription') }
+      ]);
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
       // Debug logging
       console.log('🔍 AdaptationRequestScreen: Iniciando adaptación');
+      console.log('💳 Estado de suscripción:', subscriptionStatus, 'canUseAI:', canUseAI);
       console.log('📊 Datos de receta:', JSON.stringify(recipeData, null, 2));
       console.log('⚙️ Preferencias:', JSON.stringify(preferences, null, 2));
       console.log('💬 Comentarios del usuario:', userComments);
+      console.log('🍽️ Ajuste de porciones:', portionAdjustment === 'custom' ? `${customPortions} porciones` : portionAdjustment === 'original' ? 'Mantener original' : `${portionAdjustment} porciones`);
 
       // Usar el prompt mejorado
-      const adaptationPrompt = generateAdaptationPrompt(recipeData, preferences || {}, userComments);
+      const adaptationPrompt = generateAdaptationPrompt(recipeData, preferences || {}, userComments, portionAdjustment, customPortions);
       console.log('📝 Prompt generado:', adaptationPrompt.substring(0, 500) + '...');
 
       console.log('🤖 Enviando a OpenAI...');
@@ -183,32 +242,87 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
         return;
       }
 
-      // Procesar ingredientes con la nueva estructura
-      const processedIngredients = adaptedRecipe.ingredients?.map(ing => ({
-        name: ing.name,
-        amount: `${ing.amount || ''} ${ing.unit || ''}`.trim(),
-        originalIngredient: ing.originalIngredient,
-        substitutionReason: ing.substitutionReason
-      })) || [];
+      // 🔒 SEGUNDO FILTRO DE SEGURIDAD: Validar receta adaptada contra preferencias del usuario
+      console.log('🔍 Validando receta adaptada contra preferencias del usuario...');
+      try {
+        const validationResult = await recipeValidationService.validateRecipe(adaptedRecipe, preferences || {});
 
-      // Preparar datos de la receta original
+        if (validationResult.hasCriticalIssues) {
+          console.log('🚨 Conflictos críticos detectados:', validationResult.conflicts);
+          // Mostrar alerta sobre conflictos críticos pero permitir continuar
+          Alert.alert(
+            '⚠️ Posibles Problemas de Seguridad',
+            `Se detectaron ${validationResult.conflicts.length} posibles conflictos con tus restricciones:\n\n${validationResult.conflicts.map(c => `• ${c.reason}`).join('\n')}\n\n¿Deseas continuar de todos modos?`,
+            [
+              {
+                text: 'Cancelar',
+                style: 'cancel',
+                onPress: () => setIsProcessing(false)
+              },
+              {
+                text: 'Continuar',
+                style: 'default',
+                onPress: () => console.log('👤 Usuario decidió continuar a pesar de los conflictos')
+              }
+            ]
+          );
+          // No retornamos aquí, permitimos continuar si el usuario lo decide
+        } else if (validationResult.hasWarnings) {
+          console.log('⚠️ Advertencias detectadas:', validationResult.warnings);
+          // Las advertencias no bloquean el flujo, solo notifican
+        } else {
+          console.log('✅ Validación pasada - receta segura para el usuario');
+        }
+      } catch (validationError) {
+        console.warn('⚠️ Error en validación (continuando):', validationError.message);
+        // Si falla la validación, continuamos - es solo un filtro adicional de seguridad
+      }
+
+      // Función auxiliar para convertir a número entero
+      const toInt = (value) => {
+        const parsed = parseInt(value);
+        return isNaN(parsed) ? null : parsed;
+      };
+
+      // Procesar ingredientes - convertir objetos a strings para Realm
+      const processedIngredients = adaptedRecipe.ingredients?.map(ing => {
+        const amount = `${ing.amount || ''} ${ing.unit || ''}`.trim();
+        const ingredientString = amount ? `${ing.name} - ${amount}` : ing.name;
+
+        // Si hay sustitución, agregar nota
+        if (ing.substitutionReason) {
+          return `${ingredientString} (Sustitución: ${ing.substitutionReason})`;
+        }
+
+        return ingredientString;
+      }) || [];
+
+      // Preparar datos de la receta original - asegurar tipos correctos
       const originalRecipeData = {
         ...recipeData,
+        ingredients: Array.isArray(recipeData.ingredients)
+          ? recipeData.ingredients.map(ing => typeof ing === 'string' ? ing : `${ing.name || ing} - ${ing.amount || ''}`.trim())
+          : [],
+        // Asegurar que los números sean números, no strings
+        prepTime: toInt(recipeData.prepTime),
+        cookTime: toInt(recipeData.cookTime),
+        servings: toInt(recipeData.servings),
+        cookingTime: toInt(recipeData.cookingTime),
         source: source,
         createdAt: new Date().toISOString(),
         isAdapted: false
       };
 
-      // Preparar datos de la receta adaptada
+      // Preparar datos de la receta adaptada - asegurar tipos correctos
       const adaptedRecipeData = {
         title: adaptedRecipe.title || recipeData.title,
         description: adaptedRecipe.description || recipeData.description,
         cuisine: adaptedRecipe.cuisine || recipeData.cuisine,
         difficulty: adaptedRecipe.difficulty || recipeData.difficulty,
-        cookingTime: adaptedRecipe.cookingTime?.total || recipeData.cookingTime,
-        prepTime: adaptedRecipe.cookingTime?.prep,
-        cookTime: adaptedRecipe.cookingTime?.cook,
-        servings: parseInt(adaptedRecipe.servings) || recipeData.servings,
+        cookingTime: toInt(adaptedRecipe.cookingTime?.total) || toInt(recipeData.cookingTime),
+        prepTime: toInt(adaptedRecipe.cookingTime?.prep),
+        cookTime: toInt(adaptedRecipe.cookingTime?.cook),
+        servings: toInt(adaptedRecipe.servings) || toInt(recipeData.servings),
         ingredients: processedIngredients,
         instructions: adaptedRecipe.instructions || recipeData.instructions,
 
@@ -223,6 +337,9 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
         // Metadatos de adaptación
         userComments: userComments,
         userPreferences: preferences,
+        portionAdjustment: portionAdjustment,
+        customPortions: customPortions,
+        finalPortions: portionAdjustment === 'custom' ? parseInt(customPortions) : portionAdjustment === 'original' ? recipeData.servings : parseInt(portionAdjustment),
         source: source,
         isAdapted: true,
         adapted: true,
@@ -244,12 +361,20 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
           },
           {
             text: 'Ver Receta Adaptada',
-            onPress: () => navigation.navigate('RecipeDetail', {
-              recipe: savedRecipes.adapted,
-              isAdapted: true,
-              returnTo: 'Recipes',
-              returnParams: { filter: 'adapted', hideAdaptButton: true }
-            }),
+            onPress: () => {
+              // Serializar la receta para evitar problemas con fechas
+              const serializedRecipe = {
+                ...savedRecipes.adapted,
+                createdAt: savedRecipes.adapted.createdAt?.toISOString?.() || savedRecipes.adapted.createdAt,
+                updatedAt: savedRecipes.adapted.updatedAt?.toISOString?.() || savedRecipes.adapted.updatedAt,
+              };
+              navigation.navigate('RecipeDetail', {
+                recipe: serializedRecipe,
+                isAdapted: true,
+                returnTo: 'Recipes',
+                returnParams: { filter: 'adapted', hideAdaptButton: true }
+              });
+            },
           },
         ]
       );
@@ -305,6 +430,10 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
 
     if (preferences.servingSize) {
       sections.push(`Tamaño de porción preferido: ${preferences.servingSize} personas`);
+    }
+
+    if (preferences.medicalConditions?.length > 0) {
+      sections.push(`Condiciones médicas: ${getMedicalConditionsText(preferences.medicalConditions)}`);
     }
 
     return sections.length > 0 ? sections.join('\n') : 'Sin preferencias específicas';
@@ -368,6 +497,140 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
     );
   };
 
+  const renderSubscriptionStatus = () => {
+    if (subscriptionLoading) {
+      return (
+        <Card style={[styles.subscriptionCard, styles.loadingCard]}>
+          <Card.Content style={styles.subscriptionContent}>
+            <ActivityIndicator size="small" color="#4CAF50" />
+            <Text style={styles.subscriptionText}>Verificando suscripción...</Text>
+          </Card.Content>
+        </Card>
+      );
+    }
+
+    const statusConfig = {
+      trial: {
+        icon: '🆓',
+        title: `Período de prueba (${remainingTrialDays} días restantes)`,
+        message: 'Puedes usar la IA para adaptar recetas',
+        color: '#FF9800'
+      },
+      active: {
+        icon: '✅',
+        title: 'Suscripción activa',
+        message: 'Acceso completo a todas las funciones',
+        color: '#4CAF50'
+      },
+      expired: {
+        icon: '⏰',
+        title: 'Período de prueba expirado',
+        message: 'Suscríbete para continuar usando la IA',
+        color: '#F44336'
+      },
+      canceled: {
+        icon: '❌',
+        title: 'Suscripción cancelada',
+        message: 'Renueva tu suscripción para usar la IA',
+        color: '#F44336'
+      }
+    };
+
+    const config = statusConfig[subscriptionStatus] || statusConfig.expired;
+
+    return (
+      <Card style={[styles.subscriptionCard, { borderLeftColor: config.color }]}>
+        <Card.Content style={styles.subscriptionContent}>
+          <Text style={styles.subscriptionIcon}>{config.icon}</Text>
+          <View style={styles.subscriptionTextContainer}>
+            <Text style={[styles.subscriptionTitle, { color: config.color }]}>
+              {config.title}
+            </Text>
+            <Text style={styles.subscriptionMessage}>{config.message}</Text>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
+
+  const renderPortionAdjustment = () => {
+    return (
+      <Card style={styles.portionCard}>
+        <Card.Content>
+          <Title style={styles.portionTitle}>Ajustar Cantidad de Porciones a esta Receta:</Title>
+          <Text style={styles.portionSubtitle}>
+            Selecciona cuántas porciones quieres que tenga la receta adaptada:
+          </Text>
+
+          <View style={styles.portionOptions}>
+            {/* Botones de porciones rápidas */}
+            <View style={styles.quickPortions}>
+              <Text style={styles.quickPortionsLabel}>Porciones rápidas:</Text>
+              <View style={styles.portionButtonsRow}>
+                {[1, 2, 3, 4].map((portions) => (
+                  <Button
+                    key={portions}
+                    mode={portionAdjustment === portions.toString() ? "contained" : "outlined"}
+                    onPress={() => {
+                      setPortionAdjustment(portions.toString());
+                      setCustomPortions('');
+                    }}
+                    style={[
+                      styles.portionButton,
+                      portionAdjustment === portions.toString() && styles.selectedPortionButton
+                    ]}
+                    compact
+                  >
+                    {portions}
+                  </Button>
+                ))}
+              </View>
+            </View>
+
+            {/* Campo personalizado */}
+            <View style={styles.customPortionSection}>
+              <Text style={styles.customPortionLabel}>O ingresa cantidad personalizada:</Text>
+              <View style={styles.customPortionRow}>
+                <TextInput
+                  value={customPortions}
+                  onChangeText={(text) => {
+                    setCustomPortions(text);
+                    if (text.trim()) {
+                      setPortionAdjustment('custom');
+                    }
+                  }}
+                  placeholder="Ej: 6"
+                  keyboardType="numeric"
+                  style={styles.customPortionInput}
+                  disabled={isProcessing}
+                />
+                <Text style={styles.portionsText}>porciones</Text>
+              </View>
+            </View>
+
+            {/* Botón mantener original */}
+            <View style={styles.originalPortionSection}>
+              <Button
+                mode={portionAdjustment === 'original' ? "contained" : "outlined"}
+                onPress={() => {
+                  setPortionAdjustment('original');
+                  setCustomPortions('');
+                }}
+                style={[
+                  styles.originalButton,
+                  portionAdjustment === 'original' && styles.selectedOriginalButton
+                ]}
+                icon="restore"
+              >
+                Dejar como receta original
+              </Button>
+            </View>
+          </View>
+        </Card.Content>
+      </Card>
+    );
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -384,6 +647,8 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
 
         {renderRecipePreview()}
         {renderUserPreferences()}
+        {renderSubscriptionStatus()}
+        {renderPortionAdjustment()}
 
         <Card style={styles.commentsCard}>
           <Card.Content>
@@ -452,11 +717,16 @@ Si la receta NO PUEDE adaptarse completamente a las restricciones del usuario, r
               <Button
                 mode="contained"
                 onPress={handleAdaptRecipe}
-                style={styles.adaptButton}
+                style={[styles.adaptButton, !canUseAI && styles.disabledButton]}
                 icon="auto-fix"
-                disabled={!recipeData}
+                disabled={!recipeData || !canUseAI || isProcessing || subscriptionLoading}
               >
-                Adaptar Receta con IA
+                {subscriptionLoading
+                  ? 'Verificando suscripción...'
+                  : !canUseAI
+                    ? 'Suscripción requerida'
+                    : 'Adaptar Receta con IA'
+                }
               </Button>
 
               <Button
@@ -555,6 +825,43 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 8,
   },
+  // Subscription status styles
+  subscriptionCard: {
+    margin: 20,
+    marginTop: 10,
+    backgroundColor: '#fff',
+    borderLeftWidth: 4,
+    borderRadius: 8,
+  },
+  subscriptionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  subscriptionIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  subscriptionTextContainer: {
+    flex: 1,
+  },
+  subscriptionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  subscriptionMessage: {
+    fontSize: 14,
+    color: '#666',
+  },
+  subscriptionText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  loadingCard: {
+    borderLeftColor: '#4CAF50',
+  },
   noPreferencesText: {
     fontSize: 14,
     color: '#666',
@@ -564,6 +871,80 @@ const styles = StyleSheet.create({
   },
   configureButton: {
     alignSelf: 'center',
+  },
+  portionCard: {
+    margin: 20,
+    backgroundColor: '#fff',
+  },
+  portionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 5,
+  },
+  portionSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  portionOptions: {
+    gap: 20,
+  },
+  quickPortions: {
+    marginBottom: 15,
+  },
+  quickPortionsLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  portionButtonsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'space-around',
+  },
+  portionButton: {
+    flex: 1,
+    minHeight: 45,
+  },
+  selectedPortionButton: {
+    backgroundColor: '#4CAF50',
+  },
+  customPortionSection: {
+    marginBottom: 15,
+  },
+  customPortionLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  customPortionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  customPortionInput: {
+    backgroundColor: '#f8f9fa',
+    flex: 1,
+    minHeight: 50,
+  },
+  portionsText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  originalPortionSection: {
+    alignItems: 'center',
+  },
+  originalButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+  },
+  selectedOriginalButton: {
+    backgroundColor: '#2196F3',
   },
   commentsCard: {
     margin: 20,
@@ -613,6 +994,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 30,
     marginBottom: 15,
     backgroundColor: '#4CAF50',
+  },
+  disabledButton: {
+    backgroundColor: '#CCCCCC',
+    opacity: 0.7,
   },
   backButton: {
     paddingVertical: 8,

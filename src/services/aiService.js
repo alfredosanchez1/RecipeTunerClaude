@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getApiConfig, getPreferredAIService } from '../config/api';
+import { MEDICAL_CONDITION_PROMPTS } from '../config/preferences';
 
 class AIService {
   constructor() {
@@ -26,14 +27,55 @@ class AIService {
     }
   }
 
+  // Formatear ingredientes - maneja tanto arrays de strings como arrays de objetos
+  formatIngredients(ingredients) {
+    if (!ingredients || !Array.isArray(ingredients)) {
+      return '- Sin ingredientes especificados';
+    }
+
+    return ingredients.map(ingredient => {
+      // Si es un string, usar directamente
+      if (typeof ingredient === 'string') {
+        return `- ${ingredient}`;
+      }
+
+      // Si es un objeto con name y amount
+      if (typeof ingredient === 'object' && ingredient.name) {
+        return `- ${ingredient.name}: ${ingredient.amount || ''}`;
+      }
+
+      // Si es otro tipo de objeto, convertir a string
+      return `- ${JSON.stringify(ingredient)}`;
+    }).join('\n');
+  }
+
+  // Construir instrucciones específicas para condiciones médicas
+  buildMedicalConditionInstructions(medicalConditions) {
+    if (!medicalConditions || medicalConditions.length === 0) {
+      return '';
+    }
+
+    const instructions = medicalConditions
+      .filter(conditionId => MEDICAL_CONDITION_PROMPTS[conditionId])
+      .map(conditionId => `• ${conditionId}: ${MEDICAL_CONDITION_PROMPTS[conditionId]}`)
+      .join('\n');
+
+    return instructions ? `\nINSTRUCCIONES MÉDICAS ESPECÍFICAS:\n${instructions}` : '';
+  }
+
   // Construir prompt para adaptación de receta
   buildRecipeAdaptationPrompt(recipe, userPreferences) {
     const restrictions = userPreferences.dietaryRestrictions.join(', ') || 'ninguna';
     const allergies = userPreferences.allergies.join(', ') || 'ninguna';
     const intolerances = userPreferences.intolerances.join(', ') || 'ninguna';
+    const dietType = userPreferences.dietType || 'ninguna específica';
+    const medicalConditions = userPreferences.medicalConditions || [];
     const spiceLevel = userPreferences.spiceLevel || 'medio';
     const cookingTime = userPreferences.cookingTime || '30-60 min';
     const servings = userPreferences.servings || '2-4';
+
+    // Construir instrucciones específicas para condiciones médicas
+    const medicalInstructions = this.buildMedicalConditionInstructions(medicalConditions);
 
     return `Adapta la siguiente receta según las preferencias del usuario:
 
@@ -46,7 +88,7 @@ Tiempo de cocción: ${recipe.cookingTime}
 Porciones: ${recipe.servings}
 
 Ingredientes:
-${recipe.ingredients.map(ing => `- ${ing.name}: ${ing.amount}`).join('\n')}
+${this.formatIngredients(recipe.ingredients)}
 
 Instrucciones:
 ${recipe.instructions.map((inst, index) => `${index + 1}. ${inst}`).join('\n')}
@@ -55,6 +97,8 @@ PREFERENCIAS DEL USUARIO:
 - Restricciones dietéticas: ${restrictions}
 - Alergias: ${allergies}
 - Intolerancias: ${intolerances}
+- Condiciones médicas: ${medicalConditions.length > 0 ? medicalConditions.join(', ') : 'ninguna'}
+- Tipo de dieta: ${dietType}
 - Nivel de picante preferido: ${spiceLevel}
 - Tiempo de cocción preferido: ${cookingTime}
 - Porciones preferidas: ${servings}
@@ -62,13 +106,18 @@ PREFERENCIAS DEL USUARIO:
 Por favor, adapta la receta considerando:
 1. Sustituir ingredientes problemáticos por alternativas seguras
 2. Ajustar el nivel de picante según la preferencia
-3. Optimizar el tiempo de cocción si es posible
-4. Adaptar las porciones
-5. Mantener el sabor y la calidad de la receta original
-6. Calcular información nutricional completa por porción
-7. Incluir alternativas de ingredientes y métodos de cocción
-8. Agregar consejos, advertencias y notas de compra relevantes
-9. Proporcionar un resumen detallado de todos los cambios realizados
+3. ADAPTAR SEGÚN TIPO DE DIETA ESPECÍFICA:
+   - Dieta Mediterránea: Priorizar aceite de oliva, pescado, vegetales, granos enteros, legumbres, frutos secos
+   - Dieta DASH: Reducir sodio (<1500mg/porción), incluir potasio, magnesio, calcio, evitar procesados
+   - Dieta Plant-Based/Whole Food Plant-Based: Eliminar productos animales, usar alimentos vegetales integrales, evitar procesados
+   - Dieta Cetogénica: Mantener <20g carbohidratos/porción, alta en grasas saludables, moderada en proteína
+4. Optimizar el tiempo de cocción si es posible
+5. Adaptar las porciones
+6. Mantener el sabor y la calidad de la receta original
+7. Calcular información nutricional completa por porción
+8. Incluir alternativas de ingredientes y métodos de cocción
+9. Agregar consejos, advertencias y notas de compra relevantes
+10. Proporcionar un resumen detallado de todos los cambios realizados${medicalInstructions}
 
 Responde en formato JSON con la siguiente estructura:
 {
