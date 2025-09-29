@@ -1,3 +1,14 @@
+/**
+ * ⚠️ DEPRECATED - Este archivo está obsoleto
+ *
+ * USO: realmDatabaseV2.js en su lugar
+ *
+ * Este es el servicio viejo de Realm (v1-v6) que ya no se usa.
+ * Se mantiene solo por referencia histórica.
+ *
+ * Fecha de deprecación: 2025-09-29
+ */
+
 import Realm from 'realm';
 import { realmConfig } from './realmSchemas';
 

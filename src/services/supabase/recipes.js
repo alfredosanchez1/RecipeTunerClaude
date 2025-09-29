@@ -93,12 +93,22 @@ export const getAllRecipes = async (options = {}) => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Usuario no autenticado');
 
+    // Obtener user_id del perfil
+    const { data: profile } = await supabase
+      .from(TABLES.USERS)
+      .select('id')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    if (!profile) throw new Error('Perfil de usuario no encontrado');
+
     let query = supabase
       .from(TABLES.RECIPES)
       .select(`
         *,
         nutrition_info:${TABLES.NUTRITION_INFO}(*)
       `)
+      .eq('user_id', profile.id) // 🔥 FILTRAR POR USER_ID (importante para RLS y performance)
       .order('created_at', { ascending: false });
 
     // Aplicar filtros

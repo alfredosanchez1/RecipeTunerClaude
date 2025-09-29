@@ -20,7 +20,7 @@ const OnboardingScreen = () => {
     dietaryRestrictions: [],
     allergies: [],
     intolerances: [],
-    cuisinePreferences: [],
+    dietType: '', // Cambiado de cuisinePreferences (array) a dietType (string único)
     spiceLevel: 'medium',
     cookingTime: '30-60',
     servings: '2-4',
@@ -58,15 +58,19 @@ const OnboardingScreen = () => {
       key: 'allergies',
     },
     {
-      title: 'Preferencias de Cocina',
-      subtitle: '¿Qué tipo de cocina prefieres?',
-      description: 'Selecciona tus estilos favoritos para recibir recetas que te encanten.',
-      icon: '🍳',
+      title: 'Tipo de Dieta',
+      subtitle: '¿Sigues algún tipo de dieta específica?',
+      description: 'Selecciona el tipo de dieta que mejor se adapte a tu estilo de vida.',
+      icon: '🍎',
       options: [
-        'Italiana', 'Mexicana', 'Asiática', 'Mediterránea', 'India', 'Francesa',
-        'Americana', 'Árabe', 'Griega', 'Japonesa'
+        'Dieta Mediterránea',
+        'Dieta DASH',
+        'Dieta Plant-Based',
+        'Dieta Cetogénica',
+        'Sin dieta específica'
       ],
-      key: 'cuisinePreferences',
+      key: 'dietType',
+      singleChoice: true, // Solo una opción
     },
     {
       title: 'Nivel de Picante',

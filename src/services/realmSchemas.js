@@ -1,3 +1,14 @@
+/**
+ * ⚠️ DEPRECATED - Este archivo está obsoleto
+ *
+ * USO: realmDatabaseV2.js en su lugar
+ *
+ * Este archivo contiene esquemas viejos de Realm v1-v6
+ * que ya no se usan. Se mantiene solo por referencia histórica.
+ *
+ * Fecha de deprecación: 2025-09-29
+ */
+
 import Realm from 'realm';
 import * as FileSystem from 'expo-file-system/legacy';
 
