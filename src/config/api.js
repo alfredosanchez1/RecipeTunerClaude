@@ -1,8 +1,11 @@
+import Constants from 'expo-constants';
+
 // Configuración de APIs y servicios externos
+// Las API keys se cargan desde app.json (extra.openaiApiKey)
 export const API_CONFIG = {
   // OpenAI API para adaptación de recetas y OCR
   OPENAI: {
-    API_KEY: process.env.OPENAI_API_KEY || 'TU_API_KEY_AQUI',
+    API_KEY: Constants.expoConfig?.extra?.openaiApiKey || 'TU_API_KEY_AQUI',
     BASE_URL: 'https://api.openai.com/v1',
     MODEL: 'gpt-4o',
     VISION_MODEL: 'gpt-4o',
