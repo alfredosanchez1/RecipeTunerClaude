@@ -208,32 +208,40 @@ export const createUserProfile = async (authUser, userData = {}) => {
  */
 export const ensureUserProfile = async (authUser) => {
   try {
-    console.log('🔍 Verificando perfil de usuario:', authUser.id);
+    console.log('🔍 AUTH - Verificando perfil de usuario:', authUser.id);
 
     // Buscar perfil existente
     const { data: existingProfile, error: selectError } = await supabase
       .from(TABLES.USERS)
       .select('*')
       .eq('auth_user_id', authUser.id)
+      .eq('app_name', 'recipetuner')
       .single();
 
     if (selectError && selectError.code !== 'PGRST116') {
-      console.error('❌ Error buscando perfil:', selectError);
+      console.error('❌ AUTH - Error buscando perfil:', selectError);
       throw selectError;
     }
 
     // Si existe, devolverlo
     if (existingProfile) {
-      console.log('✅ Perfil encontrado:', existingProfile.id);
+      console.log('✅ AUTH - Perfil encontrado:', existingProfile.id);
       return existingProfile;
     }
 
     // Si no existe, crearlo
-    console.log('📝 Perfil no encontrado, creando...');
+    console.log('📝 AUTH - Perfil no encontrado, creando...');
     return await createUserProfile(authUser);
   } catch (error) {
-    console.error('❌ Error verificando perfil:', error);
-    throw error;
+    console.error('❌ AUTH - Error verificando perfil:', error);
+    // En lugar de fallar, crear el perfil automáticamente
+    console.log('🔧 AUTH - Intentando crear perfil automáticamente...');
+    try {
+      return await createUserProfile(authUser);
+    } catch (createError) {
+      console.error('❌ AUTH - Error creando perfil automáticamente:', createError);
+      throw error;
+    }
   }
 };
 
@@ -303,18 +311,8 @@ export const createDefaultUserPreferences = async (userId) => {
 
     const defaultPreferences = {
       user_id: userId,
-      dietary_restrictions: [],
-      allergies: [],
-      intolerances: [],
-      cuisine_preferences: [],
-      cooking_time_preference: null,
-      difficulty_level: 'beginner',
-      serving_size: 4,
-      measurement_unit: 'metric',
-      notifications_enabled: true,
-      onboarding_complete: false,
-      theme: 'light',
-      language: 'es'
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     const { data, error } = await supabase
@@ -365,7 +363,7 @@ export const getUserPreferences = async (authUserId) => {
 };
 
 /**
- * Actualizar preferencias de usuario
+ * Actualizar preferencias de usuario (UPSERT)
  */
 export const updateUserPreferences = async (authUserId, preferences) => {
   try {
@@ -374,13 +372,19 @@ export const updateUserPreferences = async (authUserId, preferences) => {
     // Primero obtener el user_id
     const profile = await getUserProfile(authUserId);
 
+    const preferencesData = {
+      user_id: profile.id,
+      ...preferences,
+      updated_at: new Date().toISOString()
+    };
+
+    // UPSERT: Insertar o actualizar si ya existe
     const { data, error } = await supabase
       .from(TABLES.USER_PREFERENCES)
-      .update({
-        ...preferences,
-        updated_at: new Date().toISOString()
+      .upsert(preferencesData, {
+        onConflict: 'user_id',
+        returning: 'representation'
       })
-      .eq('user_id', profile.id)
       .select()
       .single();
 
@@ -389,7 +393,7 @@ export const updateUserPreferences = async (authUserId, preferences) => {
       throw error;
     }
 
-    console.log('✅ Preferencias actualizadas');
+    console.log('✅ Preferencias guardadas (upsert)');
     return data;
   } catch (error) {
     console.error('❌ Error actualizando preferencias:', error);
@@ -461,9 +465,18 @@ export const resendConfirmation = async (email) => {
 /**
  * Recuperar contraseña
  */
-export const resetPassword = async (email) => {
+export const resetPassword = async (email, redirectTo = null) => {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    console.log('🔐 Enviando reset de contraseña para:', email);
+
+    const options = {};
+
+    // Si se proporciona redirectTo, usarlo
+    if (redirectTo) {
+      options.redirectTo = redirectTo;
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, options);
 
     if (error) {
       console.error('❌ Error enviando reset de password:', error);
@@ -474,6 +487,30 @@ export const resetPassword = async (email) => {
     return true;
   } catch (error) {
     console.error('❌ Error enviando reset de password:', error);
+    throw error;
+  }
+};
+
+/**
+ * Actualizar contraseña después del reset
+ */
+export const updatePassword = async (newPassword) => {
+  try {
+    console.log('🔐 Actualizando contraseña...');
+
+    const { data, error } = await supabase.auth.updateUser({
+      password: newPassword
+    });
+
+    if (error) {
+      console.error('❌ Error actualizando contraseña:', error);
+      throw error;
+    }
+
+    console.log('✅ Contraseña actualizada exitosamente');
+    return data.user;
+  } catch (error) {
+    console.error('❌ Error actualizando contraseña:', error);
     throw error;
   }
 };
@@ -493,5 +530,6 @@ export default {
   isAuthenticated,
   isEmailConfirmed,
   resendConfirmation,
-  resetPassword
+  resetPassword,
+  updatePassword
 };

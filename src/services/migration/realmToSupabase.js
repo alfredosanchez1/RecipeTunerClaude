@@ -130,7 +130,8 @@ class RealmToSupabaseMigration {
           dietary_restrictions: realmPreferences.dietaryRestrictions || [],
           allergies: realmPreferences.allergies || [],
           intolerances: realmPreferences.intolerances || [],
-          cuisine_preferences: realmPreferences.cuisinePreferences || [],
+          diet_type: realmPreferences.dietType || '',
+          medical_conditions: realmPreferences.medicalConditions || [],
           cooking_time_preference: realmPreferences.cookingTimePreference,
           difficulty_level: realmPreferences.difficultyLevel,
           serving_size: realmPreferences.servingSize,
@@ -192,6 +193,16 @@ class RealmToSupabaseMigration {
           // Crear receta en Supabase
           const createdRecipe = await recipeService.createRecipe(supabaseRecipe);
 
+          // Si hay información nutricional, crearla en tabla separada
+          if (supabaseRecipe.nutrition && typeof supabaseRecipe.nutrition === 'object') {
+            try {
+              await recipeService.upsertNutritionInfo(createdRecipe.id, supabaseRecipe.nutrition);
+              console.log(`✅ Información nutricional guardada para: ${createdRecipe.title}`);
+            } catch (nutritionError) {
+              console.warn(`⚠️ Error guardando nutrición para ${createdRecipe.title}:`, nutritionError.message);
+            }
+          }
+
           migratedCount++;
           this.migratedItems.recipes = migratedCount;
 
@@ -236,17 +247,25 @@ class RealmToSupabaseMigration {
       imageUrl: realmRecipe.imageUrl,
       isFavorite: realmRecipe.isFavorite || false,
       source: realmRecipe.source,
-      // Campos adicionales si existen
+      // Campos adicionales de recetas adaptadas
       tips: realmRecipe.tips || [],
       warnings: realmRecipe.warnings || [],
       shoppingNotes: realmRecipe.shoppingNotes || [],
-      alternativeCookingMethods: realmRecipe.alternativeCookingMethods,
+      alternativeCookingMethods: realmRecipe.alternativeCookingMethods || realmRecipe.alternatives?.cookingMethods,
       isAdapted: realmRecipe.isAdapted || false,
       originalRecipeId: realmRecipe.originalRecipeId,
       userComments: realmRecipe.userComments,
       userPreferences: realmRecipe.userPreferences,
       adaptationSummary: realmRecipe.adaptationSummary,
-      adaptedAt: realmRecipe.adaptedAt
+      adaptedAt: realmRecipe.adaptedAt,
+      // Información nutricional (se guardará en tabla separada)
+      nutrition: realmRecipe.nutrition,
+      // Campos adicionales de adaptación
+      alternatives: realmRecipe.alternatives,
+      portionAdjustment: realmRecipe.portionAdjustment,
+      customPortions: realmRecipe.customPortions,
+      finalPortions: realmRecipe.finalPortions,
+      dietaryRestrictions: realmRecipe.dietaryRestrictions || []
     };
   }
 
@@ -333,7 +352,18 @@ class RealmToSupabaseMigration {
       for (const recipe of newRecipes) {
         try {
           const supabaseRecipe = this.convertRealmRecipeToSupabase(recipe);
-          await recipeService.createRecipe(supabaseRecipe);
+          const createdRecipe = await recipeService.createRecipe(supabaseRecipe);
+
+          // Si hay información nutricional, crearla en tabla separada
+          if (supabaseRecipe.nutrition && typeof supabaseRecipe.nutrition === 'object') {
+            try {
+              await recipeService.upsertNutritionInfo(createdRecipe.id, supabaseRecipe.nutrition);
+              console.log(`✅ Información nutricional guardada para receta nueva: ${createdRecipe.title}`);
+            } catch (nutritionError) {
+              console.warn(`⚠️ Error guardando nutrición para receta nueva ${createdRecipe.title}:`, nutritionError.message);
+            }
+          }
+
           migratedCount++;
         } catch (error) {
           console.error(`❌ Error migrando receta nueva ${recipe.title}:`, error);

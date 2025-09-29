@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect } from 'react';
 import realmDatabaseV2 from '../services/realmDatabaseV2';
+import { useAuth } from './AuthContext';
+import { migrateUserPreferencesOnly } from '../services/migration/realmToSupabase';
 
 const UserContext = createContext();
 
@@ -9,8 +11,9 @@ const initialState = {
     dietaryRestrictions: [],
     allergies: [],
     intolerances: [],
-    cuisinePreferences: [],
+    dietType: '',
     cookingTimePreference: 'Medio',
+    medicalConditions: [],
   },
   isOnboardingComplete: false,
   isLoading: false,
@@ -71,11 +74,19 @@ const userReducer = (state, action) => {
 
 export const UserProvider = ({ children }) => {
   const [state, dispatch] = useReducer(userReducer, initialState);
+  const { isAuthenticated, user: authUser } = useAuth();
 
   useEffect(() => {
+    // Solo inicializar si el usuario está autenticado
+    if (!isAuthenticated || !authUser) {
+      console.log('🔒 USER CONTEXT - Usuario no autenticado, esperando...');
+      return;
+    }
+
     // Inicializar Realm V2 y cargar datos
     const initializeDatabase = async () => {
-      console.log('🔄 USER CONTEXT - Inicializando Realm V2...');
+      console.log('🔄 USER CONTEXT - Usuario autenticado, inicializando Realm V2...');
+      console.log('👤 USER CONTEXT - Auth user:', authUser.email);
 
       const success = await realmDatabaseV2.init();
 
@@ -90,7 +101,7 @@ export const UserProvider = ({ children }) => {
     };
 
     initializeDatabase();
-  }, []);
+  }, [isAuthenticated, authUser]);
 
   const loadUserData = async () => {
     try {
@@ -109,8 +120,9 @@ export const UserProvider = ({ children }) => {
             dietaryRestrictions: userPreferences.dietaryRestrictions || [],
             allergies: userPreferences.allergies || [],
             intolerances: userPreferences.intolerances || [],
-            cuisinePreferences: userPreferences.cuisinePreferences || [],
-            cookingTimePreference: userPreferences.cookingTimePreference || 'Medio'
+            dietType: userPreferences.dietType || '',
+            cookingTimePreference: userPreferences.cookingTimePreference || 'Medio',
+            medicalConditions: userPreferences.medicalConditions || [],
           }
         });
 
@@ -121,6 +133,17 @@ export const UserProvider = ({ children }) => {
         }
 
         console.log('✅ USER CONTEXT - Datos de usuario cargados desde Realm V2');
+
+        // Sincronización bidireccional con Supabase
+        console.log('🔄 USER CONTEXT - Verificando sincronización con Supabase...');
+        try {
+          const syncResult = await migrateUserPreferencesOnly('default');
+          if (syncResult.success) {
+            console.log('✅ USER CONTEXT - Datos sincronizados con Supabase');
+          }
+        } catch (syncError) {
+          console.warn('⚠️ USER CONTEXT - Error en sync inicial:', syncError.message);
+        }
       } else {
         console.log('📭 USER CONTEXT - No se encontraron preferencias guardadas');
       }
@@ -158,8 +181,9 @@ export const UserProvider = ({ children }) => {
         dietaryRestrictions: preferences.dietaryRestrictions || [],
         allergies: preferences.allergies || [],
         intolerances: preferences.intolerances || [],
-        cuisinePreferences: preferences.cuisinePreferences || [],
+        dietType: preferences.dietType || '',
         cookingTimePreference: preferences.cookingTimePreference || 'Medio',
+        medicalConditions: preferences.medicalConditions || [],
         notificationsEnabled: preferences.notificationsEnabled ?? true,
         onboardingComplete: markOnboardingComplete || state.isOnboardingComplete
       };
@@ -170,7 +194,20 @@ export const UserProvider = ({ children }) => {
       await realmDatabaseV2.saveUserPreferences('default', dataToSave);
       console.log('✅ USER CONTEXT - Preferencias guardadas en Realm V2');
       console.log('📋 USER CONTEXT - Datos guardados:', dataToSave);
-      
+
+      // Auto-sincronización con Supabase
+      console.log('🔄 USER CONTEXT - Sincronizando preferencias con Supabase...');
+      try {
+        const syncResult = await migrateUserPreferencesOnly('default');
+        if (syncResult.success) {
+          console.log('✅ USER CONTEXT - Preferencias sincronizadas con Supabase');
+        } else {
+          console.warn('⚠️ USER CONTEXT - Error sincronizando con Supabase:', syncResult.error);
+        }
+      } catch (syncError) {
+        console.warn('⚠️ USER CONTEXT - Error en auto-sync:', syncError.message);
+      }
+
       // Si marcamos onboarding como completo, actualizar el estado
       if (markOnboardingComplete) {
         dispatch({ type: 'SET_ONBOARDING_COMPLETE', payload: true });

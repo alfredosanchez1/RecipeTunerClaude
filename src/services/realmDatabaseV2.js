@@ -26,7 +26,29 @@ const RecipeSchema = {
     isFavorite: { type: 'bool', default: false },
     createdAt: { type: 'date', default: new Date() },
     updatedAt: { type: 'date', default: new Date() },
-    source: 'string?'
+    source: 'string?',
+
+    // Campos para recetas adaptadas
+    isAdapted: { type: 'bool', default: false },
+    adapted: { type: 'bool', default: false },
+    originalRecipeId: 'string?',
+    adaptedAt: 'string?',
+
+    // Información nutricional (como strings JSON para flexibilidad)
+    nutrition: 'string?', // JSON string con calories, protein, carbs, fat, fiber, sodium
+    adaptationSummary: 'string?', // JSON string con majorChanges, substitutions, nutritionImprovements, timeAdjustments
+    tips: 'string[]', // Array de consejos
+    warnings: 'string[]', // Array de advertencias
+    alternatives: 'string?', // JSON string con ingredients alternatives y cookingMethods
+    shoppingNotes: 'string[]', // Array de notas de compra
+
+    // Metadatos de adaptación
+    userComments: 'string?',
+    userPreferences: 'string?', // JSON string de las preferencias del usuario
+    portionAdjustment: 'string?',
+    customPortions: 'string?',
+    finalPortions: 'int?',
+    dietaryRestrictions: 'string[]'
   }
 };
 
@@ -39,7 +61,8 @@ const UserPreferencesSchema = {
     dietaryRestrictions: 'string[]',
     allergies: 'string[]',
     intolerances: 'string[]',
-    cuisinePreferences: 'string[]',
+    dietType: 'string?',
+    medicalConditions: 'string[]',
     cookingTimePreference: 'string?',
     difficultyLevel: 'string?',
     servingSize: 'int?',
@@ -57,13 +80,45 @@ const UserPreferencesSchema = {
 
 const REALM_CONFIG = {
   schema: [RecipeSchema, UserPreferencesSchema],
-  schemaVersion: 5, // Nueva versión para empezar limpio
+  schemaVersion: 8, // Nueva versión para migrar cuisinePreferences -> dietType
   migration: (oldRealm, newRealm) => {
     console.log('🔄 REALM V2 - Ejecutando migración...');
-    // Migración limpia - mantener datos si existen
-    if (oldRealm.schemaVersion < 5) {
-      console.log('📈 REALM V2 - Migración desde versión anterior a v5');
-      // No hacer nada especial, Realm manejará la migración automáticamente
+    console.log(`📊 REALM V2 - Migrando desde versión ${oldRealm.schemaVersion} a ${newRealm.schemaVersion}`);
+
+    // Migración v6: agregar medicalConditions
+    if (oldRealm.schemaVersion < 6) {
+      console.log('📈 REALM V2 - Migración v6: agregando medicalConditions');
+    }
+
+    // Migración v7: agregar campos de recetas adaptadas
+    if (oldRealm.schemaVersion < 7) {
+      console.log('📈 REALM V2 - Migración v7: agregando campos de recetas adaptadas');
+    }
+
+    // Migración v8: cuisinePreferences -> dietType
+    if (oldRealm.schemaVersion < 8) {
+      console.log('📈 REALM V2 - Migración v8: cuisinePreferences -> dietType');
+
+      const oldPreferences = oldRealm.objects('UserPreferences');
+      const newPreferences = newRealm.objects('UserPreferences');
+
+      for (let i = 0; i < oldPreferences.length; i++) {
+        const oldPref = oldPreferences[i];
+        const newPref = newPreferences[i];
+
+        // Si existía cuisinePreferences, migrar a dietType
+        if (oldPref.cuisinePreferences && oldPref.cuisinePreferences.length > 0) {
+          console.log(`🔄 REALM V2 - Migrando cuisinePreferences: ${oldPref.cuisinePreferences} -> dietType vacío (se configurará en Supabase)`);
+          // Dejamos dietType vacío, Supabase tiene la verdadera fuente de datos
+          newPref.dietType = '';
+        } else {
+          newPref.dietType = '';
+        }
+
+        console.log(`✅ REALM V2 - Preferencia migrada para usuario: ${newPref.userId}`);
+      }
+
+      console.log('✅ REALM V2 - Migración v8 completada');
     }
   },
   deleteRealmIfMigrationNeeded: false // Preservar datos existentes
@@ -137,7 +192,29 @@ class RealmDatabaseV2 {
           isFavorite: recipeData.isFavorite || false,
           source: recipeData.source || null,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
+
+          // Campos de recetas adaptadas
+          isAdapted: recipeData.isAdapted || false,
+          adapted: recipeData.adapted || false,
+          originalRecipeId: recipeData.originalRecipeId || null,
+          adaptedAt: recipeData.adaptedAt || null,
+
+          // Información nutricional (almacenar como JSON string)
+          nutrition: recipeData.nutrition ? JSON.stringify(recipeData.nutrition) : null,
+          adaptationSummary: recipeData.adaptationSummary ? JSON.stringify(recipeData.adaptationSummary) : null,
+          tips: recipeData.tips || [],
+          warnings: recipeData.warnings || [],
+          alternatives: recipeData.alternatives ? JSON.stringify(recipeData.alternatives) : null,
+          shoppingNotes: recipeData.shoppingNotes || [],
+
+          // Metadatos de adaptación
+          userComments: recipeData.userComments || null,
+          userPreferences: recipeData.userPreferences ? JSON.stringify(recipeData.userPreferences) : null,
+          portionAdjustment: recipeData.portionAdjustment || null,
+          customPortions: recipeData.customPortions || null,
+          finalPortions: recipeData.finalPortions || null,
+          dietaryRestrictions: recipeData.dietaryRestrictions || []
         });
       });
 
@@ -275,7 +352,8 @@ class RealmDatabaseV2 {
             dietaryRestrictions: [],
             allergies: [],
             intolerances: [],
-            cuisinePreferences: [],
+            dietType: '',
+            medicalConditions: [],
             notificationsEnabled: true,
             onboardingComplete: false,
             createdAt: new Date(),
@@ -293,8 +371,11 @@ class RealmDatabaseV2 {
         if (preferences.intolerances !== undefined) {
           userPrefs.intolerances = [...preferences.intolerances];
         }
-        if (preferences.cuisinePreferences !== undefined) {
-          userPrefs.cuisinePreferences = [...preferences.cuisinePreferences];
+        if (preferences.dietType !== undefined) {
+          userPrefs.dietType = preferences.dietType;
+        }
+        if (preferences.medicalConditions !== undefined) {
+          userPrefs.medicalConditions = [...preferences.medicalConditions];
         }
         if (preferences.cookingTimePreference !== undefined) {
           userPrefs.cookingTimePreference = preferences.cookingTimePreference;
@@ -345,7 +426,8 @@ class RealmDatabaseV2 {
           dietaryRestrictions: Array.from(prefs.dietaryRestrictions),
           allergies: Array.from(prefs.allergies),
           intolerances: Array.from(prefs.intolerances),
-          cuisinePreferences: Array.from(prefs.cuisinePreferences),
+          dietType: prefs.dietType,
+          medicalConditions: Array.from(prefs.medicalConditions || []),
           cookingTimePreference: prefs.cookingTimePreference,
           difficultyLevel: prefs.difficultyLevel,
           servingSize: prefs.servingSize,
@@ -435,6 +517,16 @@ class RealmDatabaseV2 {
   // ===== UTILIDADES PRIVADAS =====
 
   _recipeToObject(recipe) {
+    const parseJsonField = (field) => {
+      if (!field) return null;
+      try {
+        return JSON.parse(field);
+      } catch (error) {
+        console.warn('⚠️ REALM V2 - Error parsing JSON field:', error);
+        return null;
+      }
+    };
+
     return {
       id: recipe._id.toString(),
       title: recipe.title,
@@ -451,7 +543,29 @@ class RealmDatabaseV2 {
       isFavorite: recipe.isFavorite,
       createdAt: recipe.createdAt,
       updatedAt: recipe.updatedAt,
-      source: recipe.source
+      source: recipe.source,
+
+      // Campos de recetas adaptadas
+      isAdapted: recipe.isAdapted,
+      adapted: recipe.adapted,
+      originalRecipeId: recipe.originalRecipeId,
+      adaptedAt: recipe.adaptedAt,
+
+      // Información nutricional (parsear JSON strings de vuelta a objetos)
+      nutrition: parseJsonField(recipe.nutrition),
+      adaptationSummary: parseJsonField(recipe.adaptationSummary),
+      tips: recipe.tips ? Array.from(recipe.tips) : [],
+      warnings: recipe.warnings ? Array.from(recipe.warnings) : [],
+      alternatives: parseJsonField(recipe.alternatives),
+      shoppingNotes: recipe.shoppingNotes ? Array.from(recipe.shoppingNotes) : [],
+
+      // Metadatos de adaptación
+      userComments: recipe.userComments,
+      userPreferences: parseJsonField(recipe.userPreferences),
+      portionAdjustment: recipe.portionAdjustment,
+      customPortions: recipe.customPortions,
+      finalPortions: recipe.finalPortions,
+      dietaryRestrictions: recipe.dietaryRestrictions ? Array.from(recipe.dietaryRestrictions) : []
     };
   }
 }
