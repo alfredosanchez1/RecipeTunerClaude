@@ -172,11 +172,30 @@ async def create_subscription(
         subscription = stripe.Subscription.create(**subscription_params)
 
         logger.info(f"✅ Suscripción creada: {subscription.id}")
+        logger.info(f"   📊 Status: {subscription.status}")
+        logger.info(f"   🎁 Trial end: {subscription.trial_end}")
+
+        # Obtener client_secret si existe (solo cuando hay payment method)
+        client_secret = None
+        if subscription.latest_invoice and isinstance(subscription.latest_invoice, str):
+            # Si latest_invoice es un ID, obtener el invoice completo
+            try:
+                invoice = stripe.Invoice.retrieve(subscription.latest_invoice)
+                if invoice.payment_intent and isinstance(invoice.payment_intent, str):
+                    payment_intent = stripe.PaymentIntent.retrieve(invoice.payment_intent)
+                    client_secret = payment_intent.client_secret
+                elif hasattr(invoice.payment_intent, 'client_secret'):
+                    client_secret = invoice.payment_intent.client_secret
+            except Exception as e:
+                logger.warning(f"⚠️ No se pudo obtener client_secret: {e}")
+        elif hasattr(subscription, 'latest_invoice') and hasattr(subscription.latest_invoice, 'payment_intent'):
+            if hasattr(subscription.latest_invoice.payment_intent, 'client_secret'):
+                client_secret = subscription.latest_invoice.payment_intent.client_secret
 
         return {
             "success": True,
             "subscription_id": subscription.id,
-            "client_secret": subscription.latest_invoice.payment_intent.client_secret if subscription.latest_invoice else None,
+            "client_secret": client_secret,
             "status": subscription.status,
             "current_period_end": subscription.current_period_end,
             "trial_end": subscription.trial_end
