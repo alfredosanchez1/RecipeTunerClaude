@@ -58,14 +58,47 @@ def validate_recipetuner_request(metadata: Dict[str, str]):
 
 async def get_current_user(request: Request):
     """Obtener usuario actual desde el token de autorización"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Token de autorización requerido")
+    try:
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or not auth_header.startswith("Bearer "):
+            logger.error("❌ Token de autorización faltante o inválido")
+            raise HTTPException(status_code=401, detail="Token de autorización requerido")
 
-    # Aquí validarías el token con Supabase
-    token = auth_header.replace("Bearer ", "")
-    # TODO: Implementar validación con Supabase
-    return {"user_id": "user_from_token", "email": "user@example.com"}
+        token = auth_header.replace("Bearer ", "")
+
+        # Validar token con Supabase
+        from supabase import create_client
+
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+        if not supabase_url or not supabase_key:
+            logger.error("❌ Supabase no configurado en el servidor")
+            raise HTTPException(status_code=500, detail="Configuración del servidor incorrecta")
+
+        supabase = create_client(supabase_url, supabase_key)
+
+        # Obtener usuario desde el token
+        user_response = supabase.auth.get_user(token)
+
+        if not user_response or not user_response.user:
+            logger.error("❌ Token inválido o expirado")
+            raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+        user = user_response.user
+        logger.info(f"✅ Usuario autenticado: {user.id} - {user.email}")
+
+        return {
+            "user_id": user.id,
+            "email": user.email
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error validando token: {str(e)}")
+        logger.exception("Stack trace:")
+        raise HTTPException(status_code=401, detail=f"Error validando token: {str(e)}")
 
 # ================== ENDPOINTS ==================
 
@@ -146,9 +179,11 @@ async def create_subscription(
         raise HTTPException(status_code=500, detail=f"Error de Stripe: {str(e)}")
 
     except Exception as e:
-        logger.error(f"❌ Error inesperado: {e}")
+        error_msg = str(e)
+        error_type = type(e).__name__
+        logger.error(f"❌ Error inesperado ({error_type}): {error_msg}")
         logger.exception("Stack trace completo:")
-        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno ({error_type}): {error_msg}")
 
 
 @router.post("/cancel-subscription")
