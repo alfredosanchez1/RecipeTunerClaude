@@ -128,11 +128,16 @@ async def create_subscription(
         # Si el paymentMethodId es 'pm_card_visa' (test), crear uno real
         payment_method_id = request.paymentMethodId
         if payment_method_id in ['pm_card_visa', 'test']:
-            logger.info("🧪 Creando payment method de prueba...")
-            # Crear payment method de prueba con tarjeta Stripe
+            logger.info("🧪 Creando payment method de prueba con tarjeta de test...")
+            # Crear payment method de prueba con número de tarjeta directamente
             payment_method = stripe.PaymentMethod.create(
                 type="card",
-                card={"token": "tok_visa"}  # Token de prueba de Stripe
+                card={
+                    "number": "4242424242424242",  # Tarjeta de prueba de Stripe
+                    "exp_month": 12,
+                    "exp_year": 2034,
+                    "cvc": "123"
+                }
             )
             payment_method_id = payment_method.id
             logger.info(f"✅ Payment method de prueba creado: {payment_method_id}")
