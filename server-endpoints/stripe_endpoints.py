@@ -576,9 +576,28 @@ async def handle_subscription_created(event):
     try:
         supabase = await get_supabase_client()
 
+        # Obtener auth_user_id desde metadata
+        auth_user_id = subscription['metadata'].get('user_id')
+        if not auth_user_id:
+            logger.error("❌ No se encontró user_id en metadata")
+            return
+
+        # 🔧 BUSCAR EL ID DEL PERFIL EN recipetuner_users
+        logger.info(f"🔍 Buscando perfil para auth_user_id: {auth_user_id}")
+        profile_result = supabase.table("recipetuner_users").select("id").eq(
+            "auth_user_id", auth_user_id
+        ).eq("app_name", "recipetuner").execute()
+
+        if not profile_result.data or len(profile_result.data) == 0:
+            logger.error(f"❌ No se encontró perfil en recipetuner_users para auth_user_id: {auth_user_id}")
+            return
+
+        profile_id = profile_result.data[0]['id']
+        logger.info(f"✅ Perfil encontrado: {profile_id}")
+
         # Preparar datos para insertar
         subscription_data = {
-            "user_id": subscription['metadata'].get('user_id'),
+            "user_id": profile_id,  # 🔧 Usar el ID del perfil, no auth_user_id
             "stripe_subscription_id": subscription['id'],
             "stripe_customer_id": subscription['customer'],
             "status": subscription['status'],
