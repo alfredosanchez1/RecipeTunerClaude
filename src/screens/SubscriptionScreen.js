@@ -143,11 +143,9 @@ const SubscriptionScreen = ({ navigation }) => {
 
         console.log('🎯 Plan unificado para región:', region, unifiedPlan);
         setPlans([unifiedPlan]);
-        Alert.alert('Success', `Plan ${region === 'MX' ? 'México' : 'USA'} cargado correctamente`);
       } else {
         console.warn('⚠️ No se encontró plan para la región:', region);
         setPlans(plansData); // Fallback a mostrar todos los planes
-        Alert.alert('Info', 'No se encontró plan específico para tu región. Mostrando todos los planes disponibles.');
       }
 
       // Verificar suscripción actual
@@ -182,121 +180,18 @@ const SubscriptionScreen = ({ navigation }) => {
 
   const handleSubscribe = async (plan) => {
     try {
-      Alert.alert(
-        'Confirmar Suscripción',
-        `¿Deseas suscribirte al plan ${plan.name} por $${plan.price_monthly}/mes?`,
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Suscribirse',
-            onPress: () => createPaymentIntent(plan)
-          }
-        ]
-      );
+      console.log('🎯 HANDLE SUBSCRIBE - Plan recibido:', plan);
+      console.log('🎯 HANDLE SUBSCRIBE - Tipo del plan:', typeof plan);
+      console.log('🎯 HANDLE SUBSCRIBE - Keys del plan:', Object.keys(plan || {}));
+
+      // Navegar a la pantalla de pago
+      navigation.navigate('Payment', {
+        plan: plan,
+        isYearly: isYearly
+      });
     } catch (error) {
       console.error('❌ Error al suscribirse:', error);
       Alert.alert('Error', 'No se pudo procesar la suscripción');
-    }
-  };
-
-  const createPaymentIntent = async (plan) => {
-    try {
-      setLoading(true);
-      console.log('💳 Iniciando creación de payment intent para plan:', plan);
-
-      // Usar precio según selección mensual/anual
-      const selectedPrice = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
-      const selectedPriceId = isYearly ? plan.yearlyPriceId : plan.monthlyPriceId;
-
-      console.log('💰 Precio seleccionado:', selectedPrice, 'Price ID:', selectedPriceId);
-
-      // 🎯 INTENTAR CREAR PAYMENT INTENT REAL, SI FALLA USAR SIMULACIÓN
-      console.log('🎯 Intentando crear Payment Intent real con Stripe...');
-      console.log('💰 Datos del plan:', { planId: plan.planId, price: selectedPrice, priceId: selectedPriceId });
-
-      let response;
-
-      try {
-        // Verificar que Stripe esté listo
-        if (!stripe) {
-          throw new Error('Stripe no está inicializado');
-        }
-
-        // Intentar llamada real al servidor
-        response = await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.CREATE_PAYMENT_INTENT, {
-          method: 'POST',
-          auth: true,
-          body: JSON.stringify({
-            plan_id: plan.planId,
-            price_id: selectedPriceId,
-            amount: selectedPrice * 100,
-            currency: plan.currency.toLowerCase(),
-            metadata: {
-              app_name: 'recipetuner',
-              plan_name: plan.name,
-              billing_cycle: isYearly ? 'yearly' : 'monthly'
-            }
-          })
-        });
-
-        console.log('✅ Payment Intent REAL creado:', response);
-
-      } catch (error) {
-        console.log('⚠️ Servidor aún no disponible, usando simulación:', error.message);
-
-        // Fallback a simulación
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        response = {
-          success: true,
-          payment_intent_id: `pi_simulated_${Date.now()}`,
-          client_secret: `pi_simulated_${Date.now()}_secret_${Math.random()}`,
-          amount: selectedPrice * 100,
-          currency: plan.currency.toLowerCase(),
-          status: 'requires_payment_method',
-          simulated: true
-        };
-        console.log('🧪 Payment Intent simulado:', response);
-      }
-
-      if (response.client_secret) {
-        if (response.simulated) {
-          // Payment intent simulado - mostrar mensaje
-          Alert.alert(
-            'Payment Intent Simulado',
-            '🧪 Simulación exitosa. El servidor se está actualizando para habilitar pagos reales.\n\nDatos:\n' +
-            `• Plan: ${plan.name}\n` +
-            `• Precio: ${plan.currency} ${selectedPrice}\n` +
-            `• Ciclo: ${isYearly ? 'Anual' : 'Mensual'}`
-          );
-        } else {
-          // Payment intent real - mostrar información y preparar para implementación futura
-          Alert.alert(
-            '✅ Payment Intent Real Creado',
-            `🎉 ¡Excelente! El servidor ya está funcionando.\n\n` +
-            `Datos del pago:\n` +
-            `• Plan: ${plan.name}\n` +
-            `• Precio: ${plan.currency} ${selectedPrice}\n` +
-            `• Ciclo: ${isYearly ? 'Anual' : 'Mensual'}\n` +
-            `• Payment Intent: ${response.payment_intent_id}\n\n` +
-            `💳 La interfaz de pago se implementará en la siguiente fase.`,
-            [
-              {
-                text: 'Entendido',
-                onPress: () => {
-                  console.log('✅ Payment Intent real listo para procesar');
-                  loadSubscriptionData();
-                }
-              }
-            ]
-          );
-        }
-      }
-
-    } catch (error) {
-      console.error('❌ Error creando payment intent:', error);
-      Alert.alert('Error', 'No se pudo procesar el pago');
-    } finally {
-      setLoading(false);
     }
   };
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useTheme } from 'react-native-paper';
-import { Avatar } from 'react-native-paper';
+import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
 
 import HomeScreen from '../screens/HomeScreen';
 import DatabaseTestScreen from '../screens/DatabaseTestScreen';
@@ -15,6 +15,7 @@ import ProfileScreen from '../screens/ProfileScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import PreferencesScreen from '../screens/PreferencesScreen';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import PaymentScreen from '../screens/PaymentScreen';
 import ImportRecipeScreen from '../screens/recipe/ImportRecipeScreen';
 import ConvertToPDFScreen from '../screens/recipe/ConvertToPDFScreen';
 import ImportFileScreen from '../screens/ImportFileScreen';
@@ -157,8 +158,8 @@ const ProfileStack = () => (
       },
     }}
   >
-    <Stack.Screen 
-      name="ProfileMain" 
+    <Stack.Screen
+      name="ProfileMain"
       component={ProfileScreen}
       options={{ title: 'Mi Perfil' }}
     />
@@ -171,6 +172,11 @@ const ProfileStack = () => (
       name="Subscription"
       component={SubscriptionScreen}
       options={{ title: 'Suscripciones' }}
+    />
+    <Stack.Screen
+      name="Payment"
+      component={PaymentScreen}
+      options={{ title: 'Método de Pago' }}
     />
   </Stack.Navigator>
 );
@@ -196,7 +202,7 @@ const MainNavigator = () => {
             iconName = focused ? 'cog' : 'cog-outline';
           }
 
-          return <Avatar.Icon size={size} icon={iconName} style={{ backgroundColor: 'transparent' }} />;
+          return <Icon name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#4CAF50',
         tabBarInactiveTintColor: 'gray',
