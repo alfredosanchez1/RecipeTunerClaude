@@ -537,40 +537,120 @@ async def get_price_id(plan_id: str, is_yearly: bool):
 
 # ================== HANDLERS DE WEBHOOKS ==================
 
+async def get_supabase_client():
+    """Obtener cliente de Supabase"""
+    from supabase import create_client
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+    if not supabase_url or not supabase_key:
+        raise Exception("Supabase no configurado")
+
+    return create_client(supabase_url, supabase_key)
+
 async def handle_subscription_created(event):
     """Manejar suscripción creada"""
     subscription = event['data']['object']
 
     # Solo procesar eventos de RecipeTuner
     if subscription.get('metadata', {}).get('app_name') != 'recipetuner':
+        logger.info(f"⏭️ Ignorando suscripción de otra app: {subscription.get('metadata', {}).get('app_name')}")
         return
 
-    logger.info(f"🆕 Suscripción creada: {subscription['id']}")
+    logger.info(f"🆕 Webhook: Suscripción creada: {subscription['id']}")
 
-    # TODO: Actualizar base de datos (Supabase)
-    # await update_subscription_in_supabase(subscription)
+    try:
+        supabase = await get_supabase_client()
+
+        # Preparar datos para insertar
+        subscription_data = {
+            "user_id": subscription['metadata'].get('user_id'),
+            "stripe_subscription_id": subscription['id'],
+            "stripe_customer_id": subscription['customer'],
+            "status": subscription['status'],
+            "current_period_start": datetime.fromtimestamp(subscription['current_period_start']).isoformat() if subscription.get('current_period_start') else None,
+            "current_period_end": datetime.fromtimestamp(subscription['current_period_end']).isoformat() if subscription.get('current_period_end') else None,
+            "trial_start": datetime.fromtimestamp(subscription['trial_start']).isoformat() if subscription.get('trial_start') else None,
+            "trial_end": datetime.fromtimestamp(subscription['trial_end']).isoformat() if subscription.get('trial_end') else None,
+            "app_name": "recipetuner"
+        }
+
+        # Insertar o actualizar (upsert)
+        result = supabase.table("recipetuner_subscriptions").upsert(
+            subscription_data,
+            on_conflict="stripe_subscription_id"
+        ).execute()
+
+        logger.info(f"✅ Suscripción guardada en Supabase: {subscription['id']}")
+
+    except Exception as e:
+        logger.error(f"❌ Error guardando suscripción en Supabase: {e}")
+        logger.exception("Stack trace:")
 
 async def handle_subscription_updated(event):
     """Manejar suscripción actualizada"""
     subscription = event['data']['object']
 
     if subscription.get('metadata', {}).get('app_name') != 'recipetuner':
+        logger.info(f"⏭️ Ignorando actualización de otra app")
         return
 
-    logger.info(f"🔄 Suscripción actualizada: {subscription['id']}")
+    logger.info(f"🔄 Webhook: Suscripción actualizada: {subscription['id']}")
 
-    # TODO: Actualizar base de datos (Supabase)
+    try:
+        supabase = await get_supabase_client()
+
+        # Actualizar datos
+        subscription_data = {
+            "status": subscription['status'],
+            "current_period_start": datetime.fromtimestamp(subscription['current_period_start']).isoformat() if subscription.get('current_period_start') else None,
+            "current_period_end": datetime.fromtimestamp(subscription['current_period_end']).isoformat() if subscription.get('current_period_end') else None,
+            "trial_start": datetime.fromtimestamp(subscription['trial_start']).isoformat() if subscription.get('trial_start') else None,
+            "trial_end": datetime.fromtimestamp(subscription['trial_end']).isoformat() if subscription.get('trial_end') else None,
+            "canceled_at": datetime.fromtimestamp(subscription['canceled_at']).isoformat() if subscription.get('canceled_at') else None,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        result = supabase.table("recipetuner_subscriptions").update(
+            subscription_data
+        ).eq("stripe_subscription_id", subscription['id']).execute()
+
+        logger.info(f"✅ Suscripción actualizada en Supabase: {subscription['id']}")
+
+    except Exception as e:
+        logger.error(f"❌ Error actualizando suscripción en Supabase: {e}")
+        logger.exception("Stack trace:")
 
 async def handle_subscription_deleted(event):
     """Manejar suscripción cancelada"""
     subscription = event['data']['object']
 
     if subscription.get('metadata', {}).get('app_name') != 'recipetuner':
+        logger.info(f"⏭️ Ignorando cancelación de otra app")
         return
 
-    logger.info(f"❌ Suscripción cancelada: {subscription['id']}")
+    logger.info(f"❌ Webhook: Suscripción cancelada: {subscription['id']}")
 
-    # TODO: Actualizar base de datos (Supabase)
+    try:
+        supabase = await get_supabase_client()
+
+        # Actualizar estado a cancelado
+        subscription_data = {
+            "status": "canceled",
+            "canceled_at": datetime.utcnow().isoformat(),
+            "updated_at": datetime.utcnow().isoformat()
+        }
+
+        result = supabase.table("recipetuner_subscriptions").update(
+            subscription_data
+        ).eq("stripe_subscription_id", subscription['id']).execute()
+
+        logger.info(f"✅ Suscripción marcada como cancelada en Supabase: {subscription['id']}")
+
+    except Exception as e:
+        logger.error(f"❌ Error cancelando suscripción en Supabase: {e}")
+        logger.exception("Stack trace:")
 
 async def handle_payment_succeeded(event):
     """Manejar pago exitoso"""
