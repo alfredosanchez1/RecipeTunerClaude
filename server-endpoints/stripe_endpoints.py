@@ -373,13 +373,26 @@ async def update_payment_method(
 async def stripe_webhooks(request: Request):
     """
     Manejar webhooks de Stripe
+    Soporta tanto modo TEST como PRODUCTION
     """
     try:
         payload = await request.body()
         sig_header = request.headers.get('stripe-signature')
-        endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+        # Intentar obtener el secret de TEST primero, luego PRODUCTION
+        # Si la API key es de test, usar test secret, si no, usar production secret
+        stripe_api_key = stripe.api_key or ""
+        is_test_mode = stripe_api_key.startswith("sk_test_")
+
+        if is_test_mode:
+            endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET_TEST')
+            logger.info("🧪 Usando webhook secret de TEST")
+        else:
+            endpoint_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+            logger.info("🔴 Usando webhook secret de PRODUCTION")
 
         if not endpoint_secret:
+            logger.error(f"❌ Webhook secret no configurado para modo {'TEST' if is_test_mode else 'PRODUCTION'}")
             raise HTTPException(status_code=500, detail="Webhook secret no configurado")
 
         # Verificar webhook signature
