@@ -408,30 +408,47 @@ async def test_create_payment_intent_no_auth(
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 async def get_price_id(plan_id: str, is_yearly: bool):
-    """Obtener price_id de Stripe basado en plan y frecuencia"""
-    # Mapeo de planes (actualizar con tus price_ids reales)
-    PRICE_MAPPING = {
-        "premium_mexico": {
-            "monthly": "price_mexico_monthly_89mxn",
-            "yearly": "price_mexico_yearly_699mxn"
-        },
-        "premium_usa": {
-            "monthly": "price_usa_monthly_499usd",
-            "yearly": "price_usa_yearly_3999usd"
-        }
-    }
+    """Obtener price_id de Stripe desde Supabase basado en UUID del plan"""
+    try:
+        from supabase import create_client
 
-    frequency = "yearly" if is_yearly else "monthly"
+        # Inicializar cliente Supabase
+        supabase_url = os.getenv("SUPABASE_URL")
+        supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-    if plan_id not in PRICE_MAPPING:
-        raise HTTPException(status_code=400, detail=f"Plan no válido: {plan_id}")
+        if not supabase_url or not supabase_key:
+            logger.error("❌ Supabase no configurado")
+            raise HTTPException(status_code=500, detail="Supabase no configurado")
 
-    price_id = PRICE_MAPPING[plan_id][frequency]
+        supabase = create_client(supabase_url, supabase_key)
 
-    if not price_id:
-        raise HTTPException(status_code=400, detail=f"Price ID no encontrado para {plan_id} {frequency}")
+        # Buscar plan en Supabase por UUID
+        response = supabase.table("recipetuner_subscription_plans").select("*").eq("id", plan_id).single().execute()
 
-    return price_id
+        if not response.data:
+            logger.error(f"❌ Plan no encontrado en Supabase: {plan_id}")
+            raise HTTPException(status_code=404, detail=f"Plan no encontrado: {plan_id}")
+
+        plan = response.data
+
+        # Obtener el price_id correcto según frecuencia
+        price_id = plan.get("stripe_price_id_yearly") if is_yearly else plan.get("stripe_price_id_monthly")
+
+        if not price_id:
+            logger.error(f"❌ Price ID no encontrado para plan {plan_id} ({'anual' if is_yearly else 'mensual'})")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Price ID no configurado para este plan ({'anual' if is_yearly else 'mensual'})"
+            )
+
+        logger.info(f"✅ Price ID obtenido: {price_id} para plan {plan.get('name')} ({'anual' if is_yearly else 'mensual'})")
+        return price_id
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error obteniendo price_id: {e}")
+        raise HTTPException(status_code=500, detail=f"Error obteniendo price_id: {str(e)}")
 
 # ================== HANDLERS DE WEBHOOKS ==================
 
