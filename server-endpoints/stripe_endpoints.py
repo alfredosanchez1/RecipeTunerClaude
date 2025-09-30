@@ -125,44 +125,51 @@ async def create_subscription(
         price_id = await get_price_id(request.planId, request.isYearly)
         logger.info(f"✅ Price ID obtenido: {price_id}")
 
-        # Si el paymentMethodId es 'pm_card_visa' (test), crear uno real
+        # Obtener o validar payment method
         payment_method_id = request.paymentMethodId
-        if payment_method_id in ['pm_card_visa', 'test']:
-            logger.info("🧪 Creando payment method de prueba con tarjeta de test...")
-            # Crear payment method de prueba con número de tarjeta directamente
-            payment_method = stripe.PaymentMethod.create(
-                type="card",
-                card={
-                    "number": "4242424242424242",  # Tarjeta de prueba de Stripe
-                    "exp_month": 12,
-                    "exp_year": 2034,
-                    "cvc": "123"
-                }
-            )
-            payment_method_id = payment_method.id
-            logger.info(f"✅ Payment method de prueba creado: {payment_method_id}")
 
-        # Adjuntar método de pago al customer
-        logger.info(f"🔗 Adjuntando payment method {payment_method_id} al customer...")
-        stripe.PaymentMethod.attach(
-            payment_method_id,
-            customer=customer.id
-        )
-        logger.info("✅ Payment method adjuntado")
+        # Si no hay payment method o es placeholder, crear suscripción sin payment method (trial mode)
+        if payment_method_id in ['pm_card_visa', 'test', None, '']:
+            logger.info("🧪 Modo prueba: Creando suscripción SIN payment method (solo trial)")
+            payment_method_id = None
+        else:
+            # Validar que el payment method existe
+            try:
+                pm = stripe.PaymentMethod.retrieve(payment_method_id)
+                logger.info(f"✅ Payment method válido: {pm.id}")
+            except stripe.error.InvalidRequestError as e:
+                logger.error(f"❌ Payment method inválido: {e}")
+                raise HTTPException(status_code=400, detail=f"Payment method inválido: {str(e)}")
+
+        # Adjuntar método de pago al customer (solo si existe)
+        if payment_method_id:
+            logger.info(f"🔗 Adjuntando payment method {payment_method_id} al customer...")
+            stripe.PaymentMethod.attach(
+                payment_method_id,
+                customer=customer.id
+            )
+            logger.info("✅ Payment method adjuntado")
+        else:
+            logger.info("⏭️ Sin payment method - suscripción solo con trial")
 
         # Crear suscripción
         logger.info("💳 Creando suscripción en Stripe...")
-        subscription = stripe.Subscription.create(
-            customer=customer.id,
-            items=[{"price": price_id}],
-            default_payment_method=payment_method_id,
-            trial_period_days=7,  # 7 días de trial
-            metadata={
+        subscription_params = {
+            "customer": customer.id,
+            "items": [{"price": price_id}],
+            "trial_period_days": 7,  # 7 días de trial
+            "metadata": {
                 **request.metadata,
                 "user_id": current_user.get("user_id"),
                 "created_at": datetime.utcnow().isoformat()
             }
-        )
+        }
+
+        # Solo agregar default_payment_method si existe
+        if payment_method_id:
+            subscription_params["default_payment_method"] = payment_method_id
+
+        subscription = stripe.Subscription.create(**subscription_params)
 
         logger.info(f"✅ Suscripción creada: {subscription.id}")
 
