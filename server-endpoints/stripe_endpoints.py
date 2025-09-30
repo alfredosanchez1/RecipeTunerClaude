@@ -79,27 +79,45 @@ async def create_subscription(
     """
     try:
         logger.info(f"📝 Creando suscripción para usuario: {current_user.get('user_id')}")
+        logger.info(f"📝 Request data: planId={request.planId}, isYearly={request.isYearly}")
 
         # Validar que es request de RecipeTuner
         validate_recipetuner_request(request.metadata)
 
         # Buscar o crear customer en Stripe
         customer = await get_or_create_stripe_customer(current_user)
+        logger.info(f"✅ Customer obtenido: {customer.id}")
 
         # Obtener price_id basado en planId e isYearly
         price_id = await get_price_id(request.planId, request.isYearly)
+        logger.info(f"✅ Price ID obtenido: {price_id}")
+
+        # Si el paymentMethodId es 'pm_card_visa' (test), crear uno real
+        payment_method_id = request.paymentMethodId
+        if payment_method_id in ['pm_card_visa', 'test']:
+            logger.info("🧪 Creando payment method de prueba...")
+            # Crear payment method de prueba con tarjeta Stripe
+            payment_method = stripe.PaymentMethod.create(
+                type="card",
+                card={"token": "tok_visa"}  # Token de prueba de Stripe
+            )
+            payment_method_id = payment_method.id
+            logger.info(f"✅ Payment method de prueba creado: {payment_method_id}")
 
         # Adjuntar método de pago al customer
-        await stripe.PaymentMethod.attach(
-            request.paymentMethodId,
+        logger.info(f"🔗 Adjuntando payment method {payment_method_id} al customer...")
+        stripe.PaymentMethod.attach(
+            payment_method_id,
             customer=customer.id
         )
+        logger.info("✅ Payment method adjuntado")
 
         # Crear suscripción
+        logger.info("💳 Creando suscripción en Stripe...")
         subscription = stripe.Subscription.create(
             customer=customer.id,
             items=[{"price": price_id}],
-            default_payment_method=request.paymentMethodId,
+            default_payment_method=payment_method_id,
             trial_period_days=7,  # 7 días de trial
             metadata={
                 **request.metadata,
@@ -129,6 +147,7 @@ async def create_subscription(
 
     except Exception as e:
         logger.error(f"❌ Error inesperado: {e}")
+        logger.exception("Stack trace completo:")
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
