@@ -10,6 +10,7 @@ import stripe
 import os
 import json
 import logging
+import asyncio
 from datetime import datetime
 
 # Configurar logging
@@ -663,6 +664,11 @@ async def handle_subscription_created(event):
                                 "status": "canceled",
                                 "canceled_at": datetime.now().isoformat()
                             }).eq("id", old_sub['id']).execute()
+
+                            logger.info(f"✅ Trial cancelado: {old_stripe_sub_id}")
+
+                            # Esperar un momento para que la actualización se propague
+                            await asyncio.sleep(0.5)
 
                 except Exception as cancel_error:
                     logger.error(f"❌ Error manejando suscripción antigua {old_stripe_sub_id}: {cancel_error}")

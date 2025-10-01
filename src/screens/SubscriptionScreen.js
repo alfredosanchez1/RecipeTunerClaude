@@ -17,7 +17,6 @@ import {
   Divider,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import { useStripe } from '../services/stripe/client';
 
 import {
   getSubscriptionPlans,
@@ -30,7 +29,6 @@ import { apiRequest, BACKEND_CONFIG } from '../config/backend';
 
 const SubscriptionScreen = ({ navigation }) => {
   const theme = useTheme();
-  const stripe = useStripe();
   const [loading, setLoading] = useState(true);
   const [plans, setPlans] = useState([]);
   const [currentSubscription, setCurrentSubscription] = useState(null);

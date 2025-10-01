@@ -12,9 +12,12 @@ import { UserProvider } from './src/context/UserContext';
 import { RecipeProvider } from './src/context/RecipeContext';
 import { SubscriptionProvider } from './src/context/SubscriptionContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
-import { RecipeTunerStripeProvider } from './src/services/stripe/client';
+import { StripeProvider } from '@stripe/stripe-react-native';
 import MainNavigator from './src/navigation/MainNavigator';
 import AuthNavigator from './src/navigation/AuthNavigator';
+
+// Stripe publishable key desde .env
+const STRIPE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 
 // Configuración de deep linking
 const linking = {
@@ -72,7 +75,10 @@ export default function App() {
 
   return (
     <PaperProvider>
-      <RecipeTunerStripeProvider>
+      <StripeProvider
+        publishableKey={STRIPE_PUBLISHABLE_KEY}
+        merchantIdentifier="merchant.com.recipetuner"
+      >
         <DatabaseInitializer>
           <AuthProvider>
             <SubscriptionProvider>
@@ -84,7 +90,7 @@ export default function App() {
             </SubscriptionProvider>
           </AuthProvider>
         </DatabaseInitializer>
-      </RecipeTunerStripeProvider>
+      </StripeProvider>
     </PaperProvider>
   );
 }
