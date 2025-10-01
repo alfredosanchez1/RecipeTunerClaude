@@ -599,27 +599,73 @@ async def handle_subscription_created(event):
             "user_id", profile_id
         ).in_("status", ["active", "trialing"]).execute()
 
-        # 🔄 Si hay suscripciones activas, cancelarlas
+        # 🔄 Si hay suscripciones activas, manejar según el estado
         if existing_subs.data and len(existing_subs.data) > 0:
-            logger.warning(f"⚠️ Usuario tiene {len(existing_subs.data)} suscripción(es) activa(s). Cancelando...")
+            logger.warning(f"⚠️ Usuario tiene {len(existing_subs.data)} suscripción(es) activa(s)")
 
             for old_sub in existing_subs.data:
                 try:
                     old_stripe_sub_id = old_sub['stripe_subscription_id']
+                    old_status = old_sub['status']
 
-                    # Cancelar en Stripe
-                    logger.info(f"🚫 Cancelando suscripción antigua en Stripe: {old_stripe_sub_id}")
-                    stripe.Subscription.delete(old_stripe_sub_id)
+                    # Si está en trial, cancelar sin proration (no ha pagado)
+                    if old_status == 'trialing':
+                        logger.info(f"🆓 Cancelando trial sin proration: {old_stripe_sub_id}")
+                        stripe.Subscription.delete(old_stripe_sub_id)
 
-                    # Actualizar estado en Supabase
-                    supabase.table("recipetuner_subscriptions").update({
-                        "status": "canceled",
-                        "canceled_at": datetime.now().isoformat()
-                    }).eq("id", old_sub['id']).execute()
+                        # Actualizar en Supabase
+                        supabase.table("recipetuner_subscriptions").update({
+                            "status": "canceled",
+                            "canceled_at": datetime.now().isoformat()
+                        }).eq("id", old_sub['id']).execute()
 
-                    logger.info(f"✅ Suscripción antigua cancelada: {old_stripe_sub_id}")
+                        logger.info(f"✅ Trial cancelado: {old_stripe_sub_id}")
+
+                    # Si está activa (pagada), usar proration
+                    elif old_status == 'active':
+                        logger.info(f"💰 Aplicando proration para suscripción activa: {old_stripe_sub_id}")
+
+                        # Obtener el price_id de la nueva suscripción
+                        new_price_id = subscription.get('items', {}).get('data', [{}])[0].get('price', {}).get('id')
+
+                        if new_price_id:
+                            # Modificar la suscripción existente en lugar de crear una nueva
+                            updated_sub = stripe.Subscription.modify(
+                                old_stripe_sub_id,
+                                items=[{
+                                    'id': stripe.Subscription.retrieve(old_stripe_sub_id).items.data[0].id,
+                                    'price': new_price_id,
+                                }],
+                                proration_behavior='create_prorations',  # Genera crédito proporcional
+                                metadata=subscription.get('metadata', {})
+                            )
+
+                            logger.info(f"✅ Suscripción actualizada con proration: {old_stripe_sub_id}")
+                            logger.info(f"   💵 Nuevo price_id: {new_price_id}")
+
+                            # No crear nueva suscripción, usar la modificada
+                            subscription = updated_sub
+
+                            # Actualizar en Supabase
+                            supabase.table("recipetuner_subscriptions").update({
+                                "status": updated_sub.status,
+                                "current_period_start": datetime.fromtimestamp(updated_sub.current_period_start).isoformat(),
+                                "current_period_end": datetime.fromtimestamp(updated_sub.current_period_end).isoformat()
+                            }).eq("id", old_sub['id']).execute()
+
+                            # No continuar con la inserción de nueva suscripción
+                            return
+                        else:
+                            logger.warning(f"⚠️ No se encontró price_id en nueva suscripción, cancelando antigua")
+                            stripe.Subscription.delete(old_stripe_sub_id)
+
+                            supabase.table("recipetuner_subscriptions").update({
+                                "status": "canceled",
+                                "canceled_at": datetime.now().isoformat()
+                            }).eq("id", old_sub['id']).execute()
+
                 except Exception as cancel_error:
-                    logger.error(f"❌ Error cancelando suscripción antigua {old_stripe_sub_id}: {cancel_error}")
+                    logger.error(f"❌ Error manejando suscripción antigua {old_stripe_sub_id}: {cancel_error}")
                     # Continuar de todos modos
 
         # Preparar datos para insertar

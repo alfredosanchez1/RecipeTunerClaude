@@ -29,13 +29,6 @@ import { ensureUserProfile, getCurrentUser } from '../services/supabase/auth';
 import { apiRequest, BACKEND_CONFIG } from '../config/backend';
 
 const SubscriptionScreen = ({ navigation }) => {
-  console.log('🎬 SUBS - SUBSCRIPTION SCREEN RENDERIZÁNDOSE');
-  console.log('🎬 SUBS - Navigation object exists:', !!navigation);
-
-  useEffect(() => {
-    loadSubscriptionData();
-  }, []);
-
   const theme = useTheme();
   const stripe = useStripe();
   const [loading, setLoading] = useState(true);
@@ -47,32 +40,27 @@ const SubscriptionScreen = ({ navigation }) => {
   const [isYearly, setIsYearly] = useState(false); // Toggle mensual/anual
 
   useEffect(() => {
-    console.log('🚀 SUBS - USEEFFECT EJECUTÁNDOSE EN SUBSCRIPTION SCREEN');
-    console.log('🚀 SUBS - Iniciando llamada a loadSubscriptionData');
     loadSubscriptionData();
   }, []);
 
   // Detectar región del usuario
   const detectUserRegion = async () => {
     try {
-      // Método 1: Usar Intl.DateTimeFormat para detectar zona horaria
+      // Usar Intl.DateTimeFormat para detectar zona horaria
       const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      console.log('🌎 Zona horaria detectada:', timezone);
 
-      // Método 2: Usar fetch a un servicio de geolocalización
+      // Intentar usar fetch a un servicio de geolocalización
       try {
         const response = await fetch('https://ipapi.co/json/', { timeout: 5000 });
         const data = await response.json();
-        console.log('🌎 Geolocalización detectada:', data);
 
         if (data.country_code) {
           const region = data.country_code === 'MX' ? 'MX' : 'US';
-          console.log('✅ Región detectada:', region);
           setUserRegion(region);
           return region;
         }
       } catch (geoError) {
-        console.warn('⚠️ Error detectando geolocalización:', geoError);
+        // Fallback silencioso a detección por timezone
       }
 
       // Fallback: detectar por zona horaria
@@ -82,17 +70,10 @@ const SubscriptionScreen = ({ navigation }) => {
         'America/Mazatlan', 'America/Tijuana'
       ];
 
-      if (mexicanTimezones.includes(timezone)) {
-        console.log('✅ Región detectada por timezone: MX');
-        setUserRegion('MX');
-        return 'MX';
-      } else {
-        console.log('✅ Región detectada por timezone: US');
-        setUserRegion('US');
-        return 'US';
-      }
+      const region = mexicanTimezones.includes(timezone) ? 'MX' : 'US';
+      setUserRegion(region);
+      return region;
     } catch (error) {
-      console.error('❌ Error detectando región:', error);
       // Default a México
       setUserRegion('MX');
       return 'MX';
@@ -102,25 +83,18 @@ const SubscriptionScreen = ({ navigation }) => {
   const loadSubscriptionData = async () => {
     try {
       setLoading(true);
-      console.log('🔄 SUBS - Iniciando carga de datos de suscripción');
 
       // Detectar región del usuario
       const region = await detectUserRegion();
 
       // Asegurar que el usuario tiene perfil
-      console.log('🔄 SUBS - Verificando perfil de usuario...');
       const currentUser = await getCurrentUser();
       if (currentUser) {
-        console.log('🔄 SUBS - Usuario autenticado, asegurando perfil...');
         await ensureUserProfile(currentUser);
-        console.log('✅ SUBS - Perfil de usuario verificado');
       }
 
       // Cargar planes disponibles
-      console.log('🔄 SUBS - Cargando planes...');
       const plansData = await getSubscriptionPlans();
-      console.log('✅ SUBS - Planes cargados:', plansData);
-      console.log('📊 SUBS - Número de planes:', plansData?.length || 0);
 
       // Filtrar plan para la región del usuario
       const regionPlan = plansData.find(plan =>
@@ -141,38 +115,27 @@ const SubscriptionScreen = ({ navigation }) => {
           yearlyPriceId: regionPlan.stripe_price_id_yearly
         };
 
-        console.log('🎯 Plan unificado para región:', region, unifiedPlan);
         setPlans([unifiedPlan]);
       } else {
-        console.warn('⚠️ No se encontró plan para la región:', region);
         setPlans(plansData); // Fallback a mostrar todos los planes
       }
 
       // Verificar suscripción actual
-      console.log('🔄 SUBS - Verificando suscripción activa...');
       const activeSubscription = await hasActiveSubscription();
-      console.log('✅ SUBS - Suscripción activa:', activeSubscription);
       setHasActive(activeSubscription);
 
       if (activeSubscription) {
-        console.log('🔄 SUBS - Obteniendo suscripción del usuario...');
         const subscription = await getUserSubscription();
-        console.log('✅ SUBS - Suscripción obtenida:', subscription);
         setCurrentSubscription(subscription);
       }
 
       // Verificar días de trial
-      console.log('🔄 SUBS - Verificando días de trial...');
       const trialDaysRemaining = await getTrialDaysRemaining();
-      console.log('✅ SUBS - Días de trial:', trialDaysRemaining);
       setTrialDays(trialDaysRemaining);
 
-      console.log('🎉 SUBS - Carga de datos completada exitosamente');
     } catch (error) {
-      console.error('❌ SUBS - Error cargando datos de suscripción:', error);
-      console.error('❌ SUBS - Error stack:', error.stack);
-      console.error('❌ SUBS - Error message:', error.message);
-      Alert.alert('Error', `No se pudieron cargar los planes de suscripción: ${error.message}`);
+      console.error('Error cargando datos de suscripción:', error);
+      Alert.alert('Error', 'No se pudieron cargar los planes de suscripción');
     } finally {
       setLoading(false);
     }
@@ -180,17 +143,93 @@ const SubscriptionScreen = ({ navigation }) => {
 
   const handleSubscribe = async (plan) => {
     try {
-      console.log('🎯 HANDLE SUBSCRIBE - Plan recibido:', plan);
-      console.log('🎯 HANDLE SUBSCRIBE - Tipo del plan:', typeof plan);
-      console.log('🎯 HANDLE SUBSCRIBE - Keys del plan:', Object.keys(plan || {}));
+      // Verificar si ya tiene una suscripción activa (no trial)
+      if (hasActive && currentSubscription) {
+        const isInTrial = currentSubscription.status === 'trialing';
+        const isCanceled = currentSubscription.status === 'canceled';
 
-      // Navegar a la pantalla de pago
+        // Si está en trial, permitir cambiar libremente
+        if (isInTrial) {
+          Alert.alert(
+            'Cambiar Plan Durante Trial',
+            '¿Deseas cambiar tu plan durante el período de prueba? El nuevo plan también incluirá 7 días gratis.',
+            [
+              { text: 'Cancelar', style: 'cancel' },
+              {
+                text: 'Continuar',
+                onPress: () => navigation.navigate('Payment', {
+                  plan: plan,
+                  isYearly: isYearly,
+                  isUpgrade: true,
+                  currentSubscription: currentSubscription
+                })
+              }
+            ]
+          );
+          return;
+        }
+
+        // Si está cancelada pero aún vigente, ofrecer reactivar
+        if (isCanceled) {
+          Alert.alert(
+            'Reactivar Suscripción',
+            'Tu suscripción actual está cancelada pero aún vigente. ¿Deseas activar un nuevo plan?',
+            [
+              { text: 'No', style: 'cancel' },
+              {
+                text: 'Sí, Activar',
+                onPress: () => navigation.navigate('Payment', {
+                  plan: plan,
+                  isYearly: isYearly,
+                  isUpgrade: true,
+                  currentSubscription: currentSubscription
+                })
+              }
+            ]
+          );
+          return;
+        }
+
+        // Si tiene suscripción activa pagada, mostrar advertencia
+        const periodEnd = currentSubscription.current_period_end
+          ? new Date(currentSubscription.current_period_end).toLocaleDateString()
+          : 'N/A';
+
+        const daysRemaining = currentSubscription.current_period_end
+          ? Math.ceil((new Date(currentSubscription.current_period_end) - new Date()) / (1000 * 60 * 60 * 24))
+          : 0;
+
+        Alert.alert(
+          'Ya Tienes una Suscripción Activa',
+          `Tu suscripción actual vence el ${periodEnd} (${daysRemaining} días restantes).\n\n` +
+          `Al cambiar de plan ahora:\n` +
+          `• Se calculará un crédito proporcional por el tiempo no usado\n` +
+          `• El crédito se aplicará al nuevo plan\n` +
+          `• El cambio es inmediato\n\n` +
+          `¿Deseas continuar?`,
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Cambiar Plan',
+              onPress: () => navigation.navigate('Payment', {
+                plan: plan,
+                isYearly: isYearly,
+                isUpgrade: true,
+                currentSubscription: currentSubscription
+              })
+            }
+          ]
+        );
+        return;
+      }
+
+      // Sin suscripción activa, proceder normalmente
       navigation.navigate('Payment', {
         plan: plan,
         isYearly: isYearly
       });
     } catch (error) {
-      console.error('❌ Error al suscribirse:', error);
+      console.error('Error al suscribirse:', error);
       Alert.alert('Error', 'No se pudo procesar la suscripción');
     }
   };
@@ -210,21 +249,25 @@ const SubscriptionScreen = ({ navigation }) => {
     try {
       setLoading(true);
 
+      console.error('Cancelando suscripción:', currentSubscription?.stripe_subscription_id);
+
       // Llamar a la API para cancelar
-      await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.CANCEL_SUBSCRIPTION, {
+      const response = await apiRequest(BACKEND_CONFIG.STRIPE_ENDPOINTS.CANCEL_SUBSCRIPTION, {
         method: 'POST',
         auth: true,
         body: JSON.stringify({
-          subscription_id: currentSubscription.stripe_subscription_id
+          subscriptionId: currentSubscription.stripe_subscription_id
         })
       });
+
+      console.error('Respuesta de cancelación:', response);
 
       Alert.alert('Suscripción Cancelada', 'Tu suscripción ha sido cancelada correctamente');
       await loadSubscriptionData();
 
     } catch (error) {
-      console.error('❌ Error cancelando suscripción:', error);
-      Alert.alert('Error', 'No se pudo cancelar la suscripción');
+      console.error('Error cancelando suscripción:', error);
+      Alert.alert('Error', `No se pudo cancelar la suscripción: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -449,10 +492,7 @@ const SubscriptionScreen = ({ navigation }) => {
 
               <View style={styles.planFeatures}>
                 <Text style={styles.featuresTitle}>Características:</Text>
-                {/* Debug log para features */}
-                {console.log('🔍 RENDERING PLAN:', plan.name, 'Features:', plan.features, 'Type:', typeof plan.features, 'IsArray:', Array.isArray(plan.features))}
 
-                {/* Validación defensiva para features */}
                 {Array.isArray(plan.features) && plan.features.map((feature, index) => (
                   <View key={index} style={styles.featureItem}>
                     <Icon name="check" size={16} color="#4CAF50" />
