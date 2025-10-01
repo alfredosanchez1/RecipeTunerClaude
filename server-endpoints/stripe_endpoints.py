@@ -595,6 +595,34 @@ async def handle_subscription_created(event):
         profile_id = profile_result.data[0]['id']
         logger.info(f"✅ Perfil encontrado: {profile_id}")
 
+        # 🔍 Verificar si el usuario ya tiene suscripciones activas
+        existing_subs = supabase.table("recipetuner_subscriptions").select("*").eq(
+            "user_id", profile_id
+        ).in_("status", ["active", "trialing"]).execute()
+
+        # 🔄 Si hay suscripciones activas, cancelarlas
+        if existing_subs.data and len(existing_subs.data) > 0:
+            logger.warning(f"⚠️ Usuario tiene {len(existing_subs.data)} suscripción(es) activa(s). Cancelando...")
+
+            for old_sub in existing_subs.data:
+                try:
+                    old_stripe_sub_id = old_sub['stripe_subscription_id']
+
+                    # Cancelar en Stripe
+                    logger.info(f"🚫 Cancelando suscripción antigua en Stripe: {old_stripe_sub_id}")
+                    stripe.Subscription.delete(old_stripe_sub_id)
+
+                    # Actualizar estado en Supabase
+                    supabase.table("recipetuner_subscriptions").update({
+                        "status": "canceled",
+                        "canceled_at": datetime.now().isoformat()
+                    }).eq("id", old_sub['id']).execute()
+
+                    logger.info(f"✅ Suscripción antigua cancelada: {old_stripe_sub_id}")
+                except Exception as cancel_error:
+                    logger.error(f"❌ Error cancelando suscripción antigua {old_stripe_sub_id}: {cancel_error}")
+                    # Continuar de todos modos
+
         # Preparar datos para insertar
         subscription_data = {
             "user_id": profile_id,  # 🔧 Usar el ID del perfil, no auth_user_id
