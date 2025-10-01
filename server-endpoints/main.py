@@ -7,9 +7,10 @@ Separado de CalorieSnap para mayor estabilidad
 import os
 import logging
 from datetime import datetime
+from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 import uvicorn
 
 # Configurar logging PRIMERO
@@ -291,6 +292,25 @@ async def test_stripe_payment_intent(request: Request):
             "error": str(e),
             "message": "Error interno del servidor"
         }
+
+@app.get("/.well-known/apple-app-site-association")
+async def apple_app_site_association():
+    """Serve apple-app-site-association file for Universal Links"""
+    file_path = Path(__file__).parent / ".well-known" / "apple-app-site-association"
+
+    if not file_path.exists():
+        logger.error(f"❌ apple-app-site-association file not found at {file_path}")
+        raise HTTPException(status_code=404, detail="File not found")
+
+    logger.info(f"✅ Serving apple-app-site-association from {file_path}")
+    return FileResponse(
+        file_path,
+        media_type="application/json",
+        headers={
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+        }
+    )
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
