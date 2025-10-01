@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 import uvicorn
 
 # Configurar logging PRIMERO
@@ -311,6 +311,108 @@ async def apple_app_site_association():
             "Access-Control-Allow-Origin": "*"
         }
     )
+
+@app.get("/reset-password")
+async def reset_password_handler(request: Request):
+    """
+    Handler para Universal Links de reset de contraseña.
+    Este endpoint se llama cuando el usuario hace clic en el link de Supabase.
+    Redirige a la app móvil con un deep link custom scheme.
+    """
+    # Obtener todos los query params (code, access_token, type, etc.)
+    query_params = dict(request.query_params)
+
+    logger.info(f"🔐 Reset password request recibido con params: {query_params}")
+
+    # Construir URL de deep link para la app
+    # Usamos el custom scheme ya que la app ya está abierta en este punto
+    deep_link = "recipetuner://reset-password"
+
+    # Agregar query params al deep link
+    if query_params:
+        query_string = "&".join([f"{k}={v}" for k, v in query_params.items()])
+        deep_link = f"{deep_link}?{query_string}"
+
+    logger.info(f"🔗 Redirigiendo a: {deep_link}")
+
+    # Retornar HTML que hace redirect automático al deep link
+    html_content = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redirigiendo a RecipeTuner...</title>
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }}
+            .container {{
+                text-align: center;
+                padding: 2rem;
+                background: white;
+                border-radius: 1rem;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+                max-width: 400px;
+            }}
+            h1 {{ color: #333; margin-bottom: 1rem; }}
+            p {{ color: #666; margin-bottom: 1.5rem; }}
+            .spinner {{
+                border: 3px solid #f3f3f3;
+                border-top: 3px solid #667eea;
+                border-radius: 50%;
+                width: 40px;
+                height: 40px;
+                animation: spin 1s linear infinite;
+                margin: 0 auto 1rem;
+            }}
+            @keyframes spin {{
+                0% {{ transform: rotate(0deg); }}
+                100% {{ transform: rotate(360deg); }}
+            }}
+            .manual-link {{
+                display: inline-block;
+                margin-top: 1rem;
+                padding: 0.75rem 1.5rem;
+                background: #667eea;
+                color: white;
+                text-decoration: none;
+                border-radius: 0.5rem;
+                transition: background 0.3s;
+            }}
+            .manual-link:hover {{
+                background: #764ba2;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="spinner"></div>
+            <h1>🔐 RecipeTuner</h1>
+            <p>Redirigiendo a la aplicación...</p>
+            <p style="font-size: 0.875rem; color: #999;">Si no se abre automáticamente:</p>
+            <a href="{deep_link}" class="manual-link">Abrir RecipeTuner</a>
+        </div>
+        <script>
+            // Intentar abrir la app inmediatamente
+            window.location.href = "{deep_link}";
+
+            // Fallback: si después de 2 segundos no se abrió, mostrar instrucciones
+            setTimeout(function() {{
+                console.log("App no se abrió automáticamente, usuario debe hacer clic manual");
+            }}, 2000);
+        </script>
+    </body>
+    </html>
+    """
+
+    return HTMLResponse(content=html_content)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
