@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "sdkVersion": "54.0.0",
+    "scheme": "recipetuner",
     "ios": {
       "bundleIdentifier": "com.recipetuner.app",
       "infoPlist": {

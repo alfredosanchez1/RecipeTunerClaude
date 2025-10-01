@@ -42,6 +42,33 @@ const AppContent = () => {
   const { isAuthenticated, loading, user, session } = useAuth();
   console.log('🔥 APPCONTENT - useAuth completado');
 
+  // Manejar deep links de Supabase (password recovery)
+  useEffect(() => {
+    const handleDeepLink = async (event) => {
+      const url = event.url;
+      console.log('🔗 Deep link recibido:', url);
+
+      // Extraer parámetros del URL
+      if (url && (url.includes('reset-password') || url.includes('type=recovery'))) {
+        console.log('🔐 Link de recuperación de contraseña detectado');
+        // El NavigationContainer manejará la navegación automáticamente
+      }
+    };
+
+    // Escuchar deep links
+    const subscription = Linking.addEventListener('url', handleDeepLink);
+
+    // Verificar si la app se abrió con un deep link
+    Linking.getInitialURL().then(url => {
+      if (url) {
+        console.log('🔗 App abierta con URL:', url);
+        handleDeepLink({ url });
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
   // Debug logging
   console.log('🔍 APP DEBUG - isAuthenticated:', isAuthenticated);
   console.log('🔍 APP DEBUG - loading:', loading);
