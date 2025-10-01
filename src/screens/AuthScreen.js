@@ -274,7 +274,7 @@ const AuthScreen = ({ navigation }) => {
       console.log('🔐 Enviando reset de contraseña para:', formData.email);
 
       // URL de redirección para el reset de contraseña (deep link)
-      const redirectTo = 'recipetuner://reset-password';
+      const redirectTo = 'recipetuner://';
       await resetPassword(formData.email, redirectTo);
 
       Alert.alert(

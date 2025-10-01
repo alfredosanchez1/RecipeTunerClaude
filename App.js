@@ -27,11 +27,40 @@ const linking = {
       AuthNavigator: {
         screens: {
           Auth: 'auth',
-          ResetPassword: 'reset-password',
+          ResetPassword: {
+            path: '',
+            parse: {
+              // Parsear access_token y type de query params
+              access_token: (token) => token,
+              type: (type) => type,
+            },
+          },
         },
       },
       MainNavigator: 'main',
     },
+  },
+  // Función para detectar si el deep link es de password recovery
+  async getInitialURL() {
+    const url = await Linking.getInitialURL();
+    if (url && (url.includes('type=recovery') || url.includes('access_token'))) {
+      // Redirigir a ResetPassword automáticamente
+      return url.replace('recipetuner://', 'recipetuner://ResetPassword');
+    }
+    return url;
+  },
+  subscribe(listener) {
+    const onReceiveURL = ({ url }) => {
+      if (url && (url.includes('type=recovery') || url.includes('access_token'))) {
+        // Redirigir a ResetPassword automáticamente
+        listener(url.replace('recipetuner://', 'recipetuner://ResetPassword'));
+      } else {
+        listener(url);
+      }
+    };
+
+    const subscription = Linking.addEventListener('url', onReceiveURL);
+    return () => subscription.remove();
   },
 };
 
@@ -49,7 +78,8 @@ const AppContent = () => {
       console.log('🔗 Deep link recibido:', url);
 
       // Extraer parámetros del URL
-      if (url && (url.includes('reset-password') || url.includes('type=recovery'))) {
+      // Supabase enviará recipetuner://?access_token=...&type=recovery
+      if (url && (url.includes('type=recovery') || url.includes('access_token'))) {
         console.log('🔐 Link de recuperación de contraseña detectado');
         // El NavigationContainer manejará la navegación automáticamente
       }
