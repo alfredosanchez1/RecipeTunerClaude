@@ -229,30 +229,39 @@ async def cancel_subscription(
     try:
         logger.info(f"🚫 Cancelando suscripción: {request.subscriptionId}")
 
-        # Verificar que la suscripción existe
+        # Obtener Supabase client
+        supabase = await get_supabase_client()
+
+        # Buscar el perfil del usuario actual
+        auth_user_id = current_user.get('user_id')
+        profile_result = supabase.table("recipetuner_users").select("id").eq("auth_user_id", auth_user_id).eq("app_name", "recipetuner").execute()
+
+        if not profile_result.data or len(profile_result.data) == 0:
+            raise HTTPException(status_code=404, detail="Perfil de usuario no encontrado")
+
+        user_profile_id = profile_result.data[0]['id']
+        logger.info(f"👤 Usuario actual profile_id: {user_profile_id}")
+
+        # Verificar que la suscripción pertenece al usuario en Supabase
+        subscription_result = supabase.table("recipetuner_subscriptions").select("*").eq("stripe_subscription_id", request.subscriptionId).eq("user_id", user_profile_id).execute()
+
+        if not subscription_result.data or len(subscription_result.data) == 0:
+            logger.warning(f"⚠️ Usuario {auth_user_id} intentó cancelar suscripción {request.subscriptionId} que no le pertenece")
+            raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta suscripción")
+
+        logger.info(f"✅ Suscripción verificada, pertenece al usuario")
+
+        # Verificar que la suscripción existe en Stripe
         subscription = stripe.Subscription.retrieve(request.subscriptionId)
         if not subscription:
-            raise HTTPException(status_code=404, detail="Suscripción no encontrada")
-
-        logger.info(f"📋 Metadata de suscripción: {subscription.get('metadata', {})}")
-        logger.info(f"👤 Usuario actual: {current_user.get('user_id')}")
-
-        # Verificar que la suscripción pertenece al usuario actual
-        # Comparar con auth_user_id en vez de user_id
-        subscription_metadata = subscription.get('metadata', {})
-        metadata_user_id = subscription_metadata.get('user_id') or subscription_metadata.get('auth_user_id')
-
-        if metadata_user_id and metadata_user_id != current_user.get('user_id'):
-            logger.warning(f"⚠️ Usuario {current_user.get('user_id')} intentó cancelar suscripción de {metadata_user_id}")
-            raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta suscripción")
+            raise HTTPException(status_code=404, detail="Suscripción no encontrada en Stripe")
 
         # Cancelar suscripción inmediatamente
         canceled_subscription = stripe.Subscription.delete(request.subscriptionId)
 
         logger.info(f"✅ Suscripción cancelada: {canceled_subscription.id}")
 
-        # Actualizar en Supabase
-        supabase = await get_supabase_client()
+        # Actualizar en Supabase (ya tenemos el client arriba)
         supabase.table("recipetuner_subscriptions").update({
             "status": "canceled",
             "canceled_at": datetime.now().isoformat()
