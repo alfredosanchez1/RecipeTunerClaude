@@ -226,35 +226,34 @@ async def cancel_subscription(
     Cancelar suscripción existente
     """
     try:
-        logger.info(f"❌ Cancelando suscripción: {request.subscriptionId}")
+        logger.info(f"🚫 Cancelando suscripción: {request.subscriptionId}")
 
-        # Validar que es request de RecipeTuner
-        validate_recipetuner_request(request.metadata)
-
-        # Verificar que la suscripción pertenece al usuario
+        # Verificar que la suscripción existe
         subscription = stripe.Subscription.retrieve(request.subscriptionId)
         if not subscription:
             raise HTTPException(status_code=404, detail="Suscripción no encontrada")
 
-        # Cancelar suscripción (al final del período actual)
-        canceled_subscription = stripe.Subscription.modify(
-            request.subscriptionId,
-            cancel_at_period_end=True,
-            metadata={
-                **request.metadata,
-                "canceled_by": current_user.get("user_id"),
-                "canceled_at": datetime.utcnow().isoformat()
-            }
-        )
+        # Verificar que la suscripción pertenece al usuario actual
+        subscription_metadata = subscription.get('metadata', {})
+        if subscription_metadata.get('user_id') != current_user.get('user_id'):
+            raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta suscripción")
+
+        # Cancelar suscripción inmediatamente
+        canceled_subscription = stripe.Subscription.delete(request.subscriptionId)
 
         logger.info(f"✅ Suscripción cancelada: {canceled_subscription.id}")
+
+        # Actualizar en Supabase
+        supabase = await get_supabase_client()
+        supabase.table("recipetuner_subscriptions").update({
+            "status": "canceled",
+            "canceled_at": datetime.now().isoformat()
+        }).eq("stripe_subscription_id", request.subscriptionId).execute()
 
         return {
             "success": True,
             "subscription_id": canceled_subscription.id,
-            "status": canceled_subscription.status,
-            "cancel_at_period_end": canceled_subscription.cancel_at_period_end,
-            "current_period_end": canceled_subscription.current_period_end
+            "status": canceled_subscription.status
         }
 
     except stripe.error.StripeError as e:
