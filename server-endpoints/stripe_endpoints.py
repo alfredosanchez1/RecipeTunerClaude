@@ -667,12 +667,22 @@ async def handle_subscription_created(event):
 
                             logger.info(f"✅ Trial cancelado: {old_stripe_sub_id}")
 
-                            # Esperar un momento para que la actualización se propague
-                            await asyncio.sleep(0.5)
-
                 except Exception as cancel_error:
                     logger.error(f"❌ Error manejando suscripción antigua {old_stripe_sub_id}: {cancel_error}")
                     # Continuar de todos modos
+
+        # Antes de insertar, marcar todas las suscripciones activas/trialing del usuario como canceladas
+        # Esto previene el race condition del constraint user_active_unique
+        try:
+            logger.info(f"🔧 Marcando suscripciones antiguas del usuario como canceladas en Supabase...")
+            supabase.table("recipetuner_subscriptions").update({
+                "status": "canceled",
+                "canceled_at": datetime.now().isoformat()
+            }).eq("user_id", profile_id).in_("status", ["active", "trialing"]).execute()
+            logger.info(f"✅ Suscripciones antiguas marcadas como canceladas")
+        except Exception as cleanup_error:
+            logger.warning(f"⚠️ Error limpiando suscripciones antiguas: {cleanup_error}")
+            # Continuar de todos modos
 
         # Preparar datos para insertar
         subscription_data = {
@@ -687,10 +697,9 @@ async def handle_subscription_created(event):
             "app_name": "recipetuner"
         }
 
-        # Insertar o actualizar (upsert)
-        result = supabase.table("recipetuner_subscriptions").upsert(
-            subscription_data,
-            on_conflict="stripe_subscription_id"
+        # Insertar nueva suscripción
+        result = supabase.table("recipetuner_subscriptions").insert(
+            subscription_data
         ).execute()
 
         logger.info(f"✅ Suscripción guardada en Supabase: {subscription['id']}")
