@@ -234,9 +234,16 @@ async def cancel_subscription(
         if not subscription:
             raise HTTPException(status_code=404, detail="Suscripción no encontrada")
 
+        logger.info(f"📋 Metadata de suscripción: {subscription.get('metadata', {})}")
+        logger.info(f"👤 Usuario actual: {current_user.get('user_id')}")
+
         # Verificar que la suscripción pertenece al usuario actual
+        # Comparar con auth_user_id en vez de user_id
         subscription_metadata = subscription.get('metadata', {})
-        if subscription_metadata.get('user_id') != current_user.get('user_id'):
+        metadata_user_id = subscription_metadata.get('user_id') or subscription_metadata.get('auth_user_id')
+
+        if metadata_user_id and metadata_user_id != current_user.get('user_id'):
+            logger.warning(f"⚠️ Usuario {current_user.get('user_id')} intentó cancelar suscripción de {metadata_user_id}")
             raise HTTPException(status_code=403, detail="No tienes permiso para cancelar esta suscripción")
 
         # Cancelar suscripción inmediatamente
@@ -259,10 +266,12 @@ async def cancel_subscription(
 
     except stripe.error.StripeError as e:
         logger.error(f"❌ Error de Stripe: {e}")
+        logger.exception("Stack trace de Stripe:")
         raise HTTPException(status_code=500, detail=f"Error de Stripe: {str(e)}")
 
     except Exception as e:
-        logger.error(f"❌ Error inesperado: {e}")
+        logger.error(f"❌ Error inesperado cancelando suscripción: {e}")
+        logger.exception("Stack trace completo:")
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
