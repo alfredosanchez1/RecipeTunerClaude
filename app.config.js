@@ -1,0 +1,52 @@
+import 'dotenv/config';
+
+export default {
+  "expo": {
+    "name": "RecipeTuner",
+    "slug": "recipe-tunnel-claude",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "sdkVersion": "54.0.0",
+    "ios": {
+      "bundleIdentifier": "com.recipetuner.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Esta app necesita acceso a la cámara para escanear recetas de imágenes y extractar texto con IA",
+        "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a la galería para seleccionar imágenes de recetas",
+        "NSCalendarsUsageDescription": "Esta app necesita acceso a Recordatorios para exportar listas de ingredientes e instrucciones de cocina",
+        "NSRemindersUsageDescription": "Esta app permite exportar ingredientes e instrucciones de recetas a la app de Recordatorios para mayor comodidad"
+      }
+    },
+    "android": {
+      "package": "com.recipetuner.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Permite a la app usar la cámara para escanear recetas.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "La app accede a fotos para importar recetas desde la galería."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "c878cd50-a010-4ddf-bb1d-6d06780967dd"
+      },
+      // Cargar API keys desde .env
+      "openaiApiKey": process.env.OPENAI_API_KEY
+    },
+    "owner": "luiscazares"
+  }
+};

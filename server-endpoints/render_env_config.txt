@@ -1,0 +1,45 @@
+# Variables de Entorno para RecipeTuner API en Render
+# Copiar estas variables en el dashboard de Render para el nuevo servicio
+
+# ========== STRIPE CONFIGURATION ==========
+STRIPE_SECRET_KEY=tu_stripe_secret_key_aqui
+STRIPE_WEBHOOK_SECRET=whsec_OBTENER_DEL_DASHBOARD_STRIPE
+
+# ========== SUPABASE CONFIGURATION ==========
+SUPABASE_URL=https://tu_supabase_url.supabase.co
+SUPABASE_ANON_KEY=tu_supabase_anon_key_aqui
+SUPABASE_SERVICE_ROLE_KEY=OBTENER_DEL_DASHBOARD_SUPABASE
+
+# ========== OPENAI CONFIGURATION ==========
+OPENAI_API_KEY=OBTENER_DE_OPENAI_DASHBOARD
+
+# ========== STRIPE PRICE IDS (Actualizar con valores reales) ==========
+PRICE_MEXICO_MONTHLY=price_CREAR_EN_STRIPE
+PRICE_MEXICO_YEARLY=price_CREAR_EN_STRIPE
+PRICE_USA_MONTHLY=price_CREAR_EN_STRIPE
+PRICE_USA_YEARLY=price_CREAR_EN_STRIPE
+
+# ========== APP CONFIGURATION ==========
+PORT=10000
+PYTHON_VERSION=3.11.0
+ENVIRONMENT=production
+
+# ========== INSTRUCCIONES ==========
+# 1. Crear nuevo servicio en Render:
+#    - Nombre: recipetuner-api
+#    - Build Command: pip install -r requirements.txt
+#    - Start Command: python main.py
+#    - Environment: Python 3.11
+
+# 2. Configurar dominio personalizado (opcional):
+#    - recipetuner-api.onrender.com
+
+# 3. Configurar webhook en Stripe:
+#    - URL: https://recipetuner-api.onrender.com/api/stripe/webhooks
+#    - Eventos: customer.subscription.*, invoice.payment_*
+
+# 4. Crear productos en Stripe Dashboard:
+#    - RecipeTuner Premium Mexico (89 MXN mensual, 699 MXN anual)
+#    - RecipeTuner Premium USA ($4.99 mensual, $39.99 anual)
+
+# 5. Copiar Price IDs y actualizar variables de entorno

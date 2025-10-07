@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Deep Link - RecipeTuner</title>
+    <style>
+        body {
+            font-family: system-ui;
+            padding: 40px;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            margin: 10px 0;
+            cursor: pointer;
+            width: 100%;
+        }
+        .success { background: #4CAF50; color: white; }
+        .info { background: #2196F3; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Test Deep Links - RecipeTuner</h1>
+
+    <h2>Links directos (sin Supabase):</h2>
+    <button class="success" onclick="window.location.href='recipetuner://reset-password'">
+        Test: recipetuner://reset-password
+    </button>
+
+    <button class="info" onclick="window.location.href='recipetuner://auth/reset-password'">
+        Test: recipetuner://auth/reset-password
+    </button>
+
+    <button class="info" onclick="window.location.href='recipetuner://auth/login'">
+        Test: recipetuner://auth/login
+    </button>
+
+    <h2>Instrucciones:</h2>
+    <ol>
+        <li>Abre este archivo en Safari en el simulador</li>
+        <li>Haz clic en cada botón</li>
+        <li>Observa si la app responde</li>
+    </ol>
+
+    <p><strong>Archivo:</strong> test-deeplink.html</p>
+    <p><strong>Para usar:</strong> Abre en Safari del simulador</p>
+</body>
+</html>

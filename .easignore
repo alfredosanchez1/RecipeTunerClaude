@@ -1,0 +1,6 @@
+node_modules/
+.expo/
+.git/objects/pack/
+*.log
+android/app/build/
+ios/Pods/

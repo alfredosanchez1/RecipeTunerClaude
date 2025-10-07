@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables - NUNCA subir API keys reales
+.env
+.env.local
+.env.production
+.env.staging
+.env.development
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Native
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.keystore
+*.mobileprovision
+
+# iOS
+ios/Pods/
+ios/build/
+ios/Podfile.lock
+*.pbxuser
+*.perspectivev3
+*.xcuserstate
+*.xcworkspace/xcuserdata
+DerivedData/
+
+# Android
+android/app/build/
+android/.gradle
+android/gradle/
+android/local.properties
+*.apk
+*.aab
+
+# Logs
+*.log
+logs/
+
+# Build outputs
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+.cache/
+
+# Secrets
+*.key
+*.pem
+config/secrets.json
+
+# Testing
+coverage/
+
+# Temporary
+tmp/
+temp/
