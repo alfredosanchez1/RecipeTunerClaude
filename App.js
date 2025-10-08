@@ -142,6 +142,45 @@ const AppContent = () => {
     }
   }, [loading, isAuthenticated, isPasswordRecovery, session]);
 
+  // Polling para detectar cambios en biometric_verified_session
+  // Esto asegura que la navegación funcione después del login
+  useEffect(() => {
+    if (!isAuthenticated || loading) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const verifiedSession = await AsyncStorage.getItem('biometric_verified_session');
+        const biometricEnabled = await BiometricService.isBiometricEnabled();
+
+        // Si la sesión fue verificada y ya no debemos mostrar BiometricLock
+        if (verifiedSession === 'true' && showBiometricLock) {
+          console.log('🔄 APP - Polling detectó sesión verificada, ocultando BiometricLock');
+          setShowBiometricLock(false);
+        }
+
+        // Si biometría NO está habilitada, asegurar que el flag esté en true
+        if (!biometricEnabled && verifiedSession !== 'true') {
+          console.log('🔄 APP - Polling detectó que biometría NO está habilitada, marcando sesión como verificada');
+          await AsyncStorage.setItem('biometric_verified_session', 'true');
+          setShowBiometricLock(false);
+        }
+      } catch (error) {
+        console.error('❌ APP - Error en polling biométrico:', error);
+      }
+    }, 500); // Check cada 500ms
+
+    // Limpiar intervalo después de 10 segundos (suficiente para el login)
+    const timeout = setTimeout(() => {
+      clearInterval(interval);
+      console.log('🔄 APP - Polling biométrico detenido');
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isAuthenticated, loading, showBiometricLock]);
+
   // Detectar si es un flujo de password recovery
   useEffect(() => {
     const checkPasswordRecovery = async () => {
@@ -233,20 +272,6 @@ const AppContent = () => {
   return (
     <NavigationContainer linking={linking}>
       <StatusBar style="auto" />
-      {/* Banner de debug para ver deep links - COMENTADO TEMPORALMENTE */}
-      {/* <View style={{
-        position: 'absolute',
-        top: 50,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(255, 0, 0, 0.9)',
-        padding: 15,
-        zIndex: 9999
-      }}>
-        <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>
-          🔗 DEBUG: {debugUrl}
-        </Text>
-      </View> */}
       {shouldShowAuth ? <AuthNavigator isPasswordRecovery={isPasswordRecovery} recoveryUrl={recoveryUrl} /> : <MainNavigator />}
     </NavigationContainer>
   );
