@@ -9,7 +9,7 @@ import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator, Text, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -257,6 +257,18 @@ const AppContent = () => {
   console.log('  - session exists:', !!session);
   console.log('  - isPasswordRecovery:', isPasswordRecovery);
   console.log('='.repeat(60));
+
+  // DEBUG TEMPORAL: Alert para ver estado
+  useEffect(() => {
+    if (!loading && biometricCheckComplete && !showBiometricLock) {
+      const shouldShowAuth = !isAuthenticated || isPasswordRecovery;
+      Alert.alert(
+        'DEBUG - Estado de Navegación',
+        `isAuth: ${isAuthenticated}\nloading: ${loading}\nshowLock: ${showBiometricLock}\nshowAuth: ${shouldShowAuth}\n\nMostrando: ${shouldShowAuth ? 'AUTH' : 'MAIN'}`,
+        [{ text: 'OK' }]
+      );
+    }
+  }, [isAuthenticated, loading, biometricCheckComplete, showBiometricLock, isPasswordRecovery]);
 
   if (loading || !biometricCheckComplete) {
     console.log('⏳ APP - Showing loading screen');

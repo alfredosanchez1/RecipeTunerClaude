@@ -17,7 +17,7 @@ export default {
     "scheme": "recipetuner",
     "ios": {
       "bundleIdentifier": "com.recipetuner.app",
-      "buildNumber": "10",
+      "buildNumber": "11",
       "infoPlist": {
         "NSCameraUsageDescription": "Esta app necesita acceso a la cámara para escanear recetas de imágenes y extractar texto con IA",
         "NSPhotoLibraryUsageDescription": "Esta app necesita acceso a la galería para seleccionar imágenes de recetas",

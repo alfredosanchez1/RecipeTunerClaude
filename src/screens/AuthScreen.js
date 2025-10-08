@@ -117,6 +117,14 @@ const AuthScreen = ({ navigation }) => {
       console.log('🔐 Marcando sesión como verificada después de login manual');
       await AsyncStorage.setItem('biometric_verified_session', 'true');
 
+      // DEBUG TEMPORAL: Verificar que el flag se guardó
+      const verifiedCheck = await AsyncStorage.getItem('biometric_verified_session');
+      Alert.alert(
+        'DEBUG - Login Completado',
+        `Usuario: ${data.user?.email}\nVerified flag: ${verifiedCheck}\n\nAhora debería navegar a MainNavigator`,
+        [{ text: 'OK' }]
+      );
+
       // Verificar si se puede mostrar el modal de biometría
       await checkAndShowBiometricSetup(data.user, data.session);
 
