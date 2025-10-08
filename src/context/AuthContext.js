@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../services/supabase/client';
 import { ensureUserProfile } from '../services/supabase/auth';
 import BiometricService from '../services/BiometricService';
@@ -93,6 +94,10 @@ export const AuthProvider = ({ children }) => {
       await BiometricService.clearAll();
       console.log('🧹 AUTH CONTEXT - Credenciales biométricas limpiadas');
 
+      // Limpiar flag de sesión biométrica verificada
+      await AsyncStorage.removeItem('biometric_verified_session');
+      console.log('🧹 AUTH CONTEXT - Flag de sesión biométrica limpiado');
+
       const { error } = await supabase.auth.signOut();
 
       if (error) {
@@ -106,9 +111,10 @@ export const AuthProvider = ({ children }) => {
       // Aunque haya error, mantener estados locales limpiados
       setSession(null);
       setUser(null);
-      // Intentar limpiar biometría aunque haya error
+      // Intentar limpiar biometría y flag aunque haya error
       try {
         await BiometricService.clearAll();
+        await AsyncStorage.removeItem('biometric_verified_session');
       } catch (bioError) {
         console.error('❌ AUTH CONTEXT - Error limpiando biometría:', bioError);
       }

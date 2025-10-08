@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BiometricService from '../services/BiometricService';
 import { supabase } from '../services/supabase/client';
 
@@ -108,7 +109,8 @@ const BiometricLockScreen = ({ navigation }) => {
         console.error('❌ No se encontraron credenciales guardadas');
         // Si no hay credenciales, deshabilitar biometría y mostrar login
         await BiometricService.disableBiometric();
-        navigation.replace('Auth');
+        // No necesitamos navigate, simplemente desactivamos showBiometricLock
+        // y la app mostrará AuthScreen
         return;
       }
 
@@ -119,19 +121,28 @@ const BiometricLockScreen = ({ navigation }) => {
         console.error('❌ Sesión inválida o expirada:', error);
         // Sesión expirada, forzar login completo
         await BiometricService.disableBiometric();
-        navigation.replace('Auth');
+        await supabase.auth.signOut(); // Forzar sign out
+        // La app detectará el sign out y mostrará AuthScreen
         return;
       }
 
-      // Sesión válida, navegar a la app
+      // Sesión válida, marcar que biometría fue verificada en esta sesión
       console.log('✅ Sesión válida, desbloqueando app...');
-      // El AuthContext detectará la sesión y mostrará MainNavigator automáticamente
-      // No necesitamos hacer nada más aquí
+
+      // Marcar temporalmente que la biometría fue verificada
+      await AsyncStorage.setItem('biometric_verified_session', 'true');
+
+      // Forzar un refresh de la sesión para que la app se re-renderice
+      // Esto hará que el useEffect en App.js se ejecute de nuevo
+      await supabase.auth.refreshSession();
+
+      console.log('✅ Sesión refrescada, app debería mostrar MainNavigator ahora');
 
     } catch (error) {
       console.error('❌ Error verificando sesión:', error);
-      // En caso de error, ir a login
-      navigation.replace('Auth');
+      // En caso de error, deshabilitar biometría y forzar logout
+      await BiometricService.disableBiometric();
+      await supabase.auth.signOut();
     }
   };
 

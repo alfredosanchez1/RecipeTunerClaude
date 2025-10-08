@@ -11,6 +11,7 @@ import { Provider as PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text } from 'react-native';
 import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import DatabaseInitializer from './src/components/DatabaseInitializer';
 import { UserProvider } from './src/context/UserContext';
@@ -88,16 +89,46 @@ const AppContent = () => {
   const [recoveryUrl, setRecoveryUrl] = useState(null);
   const [showBiometricLock, setShowBiometricLock] = useState(false);
   const [biometricCheckComplete, setBiometricCheckComplete] = useState(false);
+  const [biometricVerified, setBiometricVerified] = useState(false);
 
   // Verificar si debe mostrar biometric lock al iniciar
   useEffect(() => {
     const checkBiometric = async () => {
       try {
-        const biometricEnabled = await BiometricService.isBiometricEnabled();
-        console.log('🔐 APP - Biometría habilitada:', biometricEnabled);
+        // Si el usuario no está autenticado, limpiar flag
+        if (!isAuthenticated) {
+          await AsyncStorage.removeItem('biometric_verified_session');
+          setBiometricVerified(false);
+          setShowBiometricLock(false);
+          setBiometricCheckComplete(true);
+          return;
+        }
 
-        if (biometricEnabled && isAuthenticated) {
+        const biometricEnabled = await BiometricService.isBiometricEnabled();
+        const verifiedSession = await AsyncStorage.getItem('biometric_verified_session');
+
+        console.log('🔐 APP - Biometría habilitada:', biometricEnabled);
+        console.log('🔐 APP - isAuthenticated:', isAuthenticated);
+        console.log('🔐 APP - Sesión biométrica verificada:', verifiedSession === 'true');
+
+        // Actualizar estado de biometricVerified basado en AsyncStorage
+        if (verifiedSession === 'true') {
+          setBiometricVerified(true);
+        } else {
+          setBiometricVerified(false);
+        }
+
+        // Solo mostrar biometric lock si:
+        // 1. Biometría está habilitada
+        // 2. El usuario está autenticado
+        // 3. NO es un flujo de password recovery
+        // 4. NO ha sido verificada en esta sesión
+        if (biometricEnabled && isAuthenticated && !isPasswordRecovery && verifiedSession !== 'true') {
+          console.log('🔐 APP - Mostrando BiometricLockScreen');
           setShowBiometricLock(true);
+        } else {
+          console.log('🔐 APP - NO mostrando BiometricLockScreen');
+          setShowBiometricLock(false);
         }
       } catch (error) {
         console.error('❌ APP - Error verificando biometría:', error);
@@ -109,7 +140,7 @@ const AppContent = () => {
     if (!loading) {
       checkBiometric();
     }
-  }, [loading, isAuthenticated]);
+  }, [loading, isAuthenticated, isPasswordRecovery, session]);
 
   // Detectar si es un flujo de password recovery
   useEffect(() => {
