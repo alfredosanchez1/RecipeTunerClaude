@@ -112,17 +112,15 @@ const AuthScreen = ({ navigation }) => {
       // Obtener o crear perfil de usuario
       await createOrUpdateUserProfile(data.user);
 
-      // Si biometría NO está habilitada, marcar sesión como verificada
-      const biometricEnabled = await BiometricService.isBiometricEnabled();
-      if (!biometricEnabled) {
-        console.log('🔐 Biometría NO habilitada, marcando sesión como verificada');
-        await AsyncStorage.setItem('biometric_verified_session', 'true');
-      }
+      // IMPORTANTE: Siempre marcar la sesión como verificada después del login manual
+      // Esto permite que la app navegue inmediatamente a MainNavigator
+      console.log('🔐 Marcando sesión como verificada después de login manual');
+      await AsyncStorage.setItem('biometric_verified_session', 'true');
 
       // Verificar si se puede mostrar el modal de biometría
       await checkAndShowBiometricSetup(data.user, data.session);
 
-      Alert.alert('¡Bienvenido!', 'Has iniciado sesión correctamente');
+      console.log('✅ Login completado, la app debería navegar a MainNavigator');
 
     } catch (error) {
       console.error('❌ Error inesperado en login:', error);

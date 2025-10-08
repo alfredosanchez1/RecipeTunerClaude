@@ -145,35 +145,51 @@ const AppContent = () => {
   // Polling para detectar cambios en biometric_verified_session
   // Esto asegura que la navegación funcione después del login
   useEffect(() => {
-    if (!isAuthenticated || loading) return;
+    if (!isAuthenticated || loading) {
+      console.log('🔄 APP - Polling: saltando porque isAuthenticated=', isAuthenticated, 'loading=', loading);
+      return;
+    }
+
+    console.log('🔄 APP - Iniciando polling biométrico...');
+    let pollCount = 0;
 
     const interval = setInterval(async () => {
       try {
+        pollCount++;
         const verifiedSession = await AsyncStorage.getItem('biometric_verified_session');
         const biometricEnabled = await BiometricService.isBiometricEnabled();
 
-        // Si la sesión fue verificada y ya no debemos mostrar BiometricLock
+        console.log(`🔄 APP - Polling #${pollCount}: verifiedSession=${verifiedSession}, biometricEnabled=${biometricEnabled}, showBiometricLock=${showBiometricLock}`);
+
+        // Si la sesión fue verificada y estamos mostrando BiometricLock, ocultarlo
         if (verifiedSession === 'true' && showBiometricLock) {
-          console.log('🔄 APP - Polling detectó sesión verificada, ocultando BiometricLock');
+          console.log('🔄 APP - ✅ Polling detectó sesión verificada, ocultando BiometricLock');
           setShowBiometricLock(false);
+          setBiometricCheckComplete(true);
         }
 
         // Si biometría NO está habilitada, asegurar que el flag esté en true
         if (!biometricEnabled && verifiedSession !== 'true') {
-          console.log('🔄 APP - Polling detectó que biometría NO está habilitada, marcando sesión como verificada');
+          console.log('🔄 APP - ✅ Polling detectó que biometría NO está habilitada, marcando sesión como verificada');
           await AsyncStorage.setItem('biometric_verified_session', 'true');
           setShowBiometricLock(false);
+          setBiometricCheckComplete(true);
+        }
+
+        // Si la sesión está verificada, forzar que biometricCheckComplete sea true
+        if (verifiedSession === 'true') {
+          setBiometricCheckComplete(true);
         }
       } catch (error) {
         console.error('❌ APP - Error en polling biométrico:', error);
       }
-    }, 500); // Check cada 500ms
+    }, 300); // Check cada 300ms (más frecuente)
 
-    // Limpiar intervalo después de 10 segundos (suficiente para el login)
+    // Limpiar intervalo después de 15 segundos
     const timeout = setTimeout(() => {
       clearInterval(interval);
-      console.log('🔄 APP - Polling biométrico detenido');
-    }, 10000);
+      console.log('🔄 APP - Polling biométrico detenido después de 15 segundos');
+    }, 15000);
 
     return () => {
       clearInterval(interval);
@@ -230,15 +246,17 @@ const AppContent = () => {
   }, []);
 
   // Debug logging
-  console.log('🔍 APP DEBUG - isAuthenticated:', isAuthenticated);
-  console.log('🔍 APP DEBUG - loading:', loading);
-  console.log('🔍 APP DEBUG - user exists:', !!user);
-  console.log('🔍 APP DEBUG - user email:', user?.email);
-  console.log('🔍 APP DEBUG - user email_confirmed_at:', user?.email_confirmed_at);
-  console.log('🔍 APP DEBUG - session exists:', !!session);
-  console.log('🔍 APP DEBUG - isPasswordRecovery:', isPasswordRecovery);
-  console.log('🔍 APP DEBUG - debugUrl:', debugUrl);
-  console.log('💡 APP DEBUG - SESION PERSISTENTE DETECTADA, AGREGAR LOGOUT MANUAL');
+  console.log('='.repeat(60));
+  console.log('🔍 APP DEBUG - Estado actual:');
+  console.log('  - isAuthenticated:', isAuthenticated);
+  console.log('  - loading:', loading);
+  console.log('  - biometricCheckComplete:', biometricCheckComplete);
+  console.log('  - showBiometricLock:', showBiometricLock);
+  console.log('  - user exists:', !!user);
+  console.log('  - user email:', user?.email);
+  console.log('  - session exists:', !!session);
+  console.log('  - isPasswordRecovery:', isPasswordRecovery);
+  console.log('='.repeat(60));
 
   if (loading || !biometricCheckComplete) {
     console.log('⏳ APP - Showing loading screen');
@@ -267,7 +285,10 @@ const AppContent = () => {
   // Si es password recovery, siempre mostrar AuthNavigator (incluso si está autenticado)
   const shouldShowAuth = !isAuthenticated || isPasswordRecovery;
 
-  console.log('🚀 APP - Rendering:', shouldShowAuth ? 'AuthNavigator' : 'MainNavigator');
+  console.log('🚀🚀🚀 APP - DECISIÓN DE RENDERIZADO:');
+  console.log('  shouldShowAuth =', shouldShowAuth);
+  console.log('  Por lo tanto, mostrando:', shouldShowAuth ? '🔐 AuthNavigator' : '✅ MainNavigator');
+  console.log('='.repeat(60));
 
   return (
     <NavigationContainer linking={linking}>
