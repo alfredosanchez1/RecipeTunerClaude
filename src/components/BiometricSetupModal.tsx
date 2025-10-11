@@ -1,4 +1,10 @@
-import React, { useState, useEffect } from 'react';
+/**
+ * BiometricSetupModal.tsx
+ * Modal para configurar autenticación biométrica después del login
+ * Se muestra solo una vez después del primer login exitoso
+ */
+
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   StyleSheet,
@@ -18,14 +24,17 @@ import {
   Text,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import BiometricService from '../services/BiometricService';
 
-/**
- * Modal para configurar autenticación biométrica después del login
- * Se muestra solo una vez después del primer login exitoso
- */
-const BiometricSetupModal = ({
+interface BiometricSetupModalProps {
+  visible: boolean;
+  onClose: () => void;
+  onEnable?: () => void;
+  userEmail: string;
+  password: string;
+}
+
+const BiometricSetupModal: React.FC<BiometricSetupModalProps> = ({
   visible,
   onClose,
   onEnable,
@@ -36,12 +45,13 @@ const BiometricSetupModal = ({
   const [loading, setLoading] = useState(false);
   const [biometricType, setBiometricType] = useState('Biometría');
   const [dontShowAgain, setDontShowAgain] = useState(false);
-  const [scaleAnim] = useState(new Animated.Value(0));
-  const [pulseAnim] = useState(new Animated.Value(1));
+
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     if (visible) {
-      // Animación de entrada
+      // Animación de entrada con spring
       Animated.spring(scaleAnim, {
         toValue: 1,
         tension: 50,
@@ -86,16 +96,16 @@ const BiometricSetupModal = ({
       const result = await BiometricService.enableBiometric(userEmail, password);
 
       if (result.success) {
-        console.log('✅ Biometría habilitada desde modal');
+        console.log('[BiometricSetupModal] Biometric enabled successfully');
         onEnable && onEnable();
         onClose();
       } else {
-        console.log('❌ No se pudo habilitar biometría:', result.error);
+        console.log('[BiometricSetupModal] Failed to enable biometric:', result.error);
         // Aún así cerramos el modal, el usuario puede habilitarlo después desde Settings
         onClose();
       }
     } catch (error) {
-      console.error('❌ Error habilitando biometría:', error);
+      console.error('[BiometricSetupModal] Error enabling biometric:', error);
       onClose();
     } finally {
       setLoading(false);
@@ -103,23 +113,19 @@ const BiometricSetupModal = ({
   };
 
   const handleSkip = async () => {
-    console.log('⏭️ Usuario omitió configuración de biometría');
+    console.log('[BiometricSetupModal] User skipped biometric setup');
 
     // Si el usuario marcó "No volver a mostrar", guardar preferencia
     if (dontShowAgain) {
-      try {
-        await AsyncStorage.setItem('biometric_setup_dismissed', 'true');
-        console.log('✅ Preferencia guardada: No volver a mostrar modal de Face ID');
-      } catch (error) {
-        console.error('❌ Error guardando preferencia:', error);
-      }
+      await BiometricService.setDontShowSetupAgain(true);
+      console.log('[BiometricSetupModal] User preference saved: dont show again');
     }
 
     onClose();
   };
 
   // Determinar ícono según tipo de biometría
-  const getIconName = () => {
+  const getIconName = (): string => {
     if (biometricType === 'Face ID') return 'face-recognition';
     if (biometricType === 'Touch ID') return 'fingerprint';
     return 'shield-lock';
@@ -156,7 +162,7 @@ const BiometricSetupModal = ({
 
               {/* Título */}
               <Title style={styles.title}>
-                Habilitar {biometricType}
+                ¿Habilitar {biometricType}?
               </Title>
 
               {/* Descripción */}
@@ -171,28 +177,28 @@ const BiometricSetupModal = ({
               {/* Beneficios */}
               <View style={styles.benefitsContainer}>
                 <View style={styles.benefitItem}>
-                  <Icon name="lock" size={20} color="#4CAF50" />
+                  <Icon name="lock" size={24} color="#4CAF50" />
                   <Paragraph style={styles.benefitText}>
                     100% seguro
                   </Paragraph>
                 </View>
 
                 <View style={styles.benefitItem}>
-                  <Icon name="lightning-bolt" size={20} color="#FF9800" />
+                  <Icon name="lightning-bolt" size={24} color="#FF9800" />
                   <Paragraph style={styles.benefitText}>
                     Acceso rápido
                   </Paragraph>
                 </View>
 
                 <View style={styles.benefitItem}>
-                  <Icon name="shield-check" size={20} color="#2196F3" />
+                  <Icon name="shield-check" size={24} color="#2196F3" />
                   <Paragraph style={styles.benefitText}>
                     Sin contraseñas
                   </Paragraph>
                 </View>
               </View>
 
-              {/* Botones */}
+              {/* Botón principal */}
               <Button
                 mode="contained"
                 onPress={handleEnable}
@@ -221,6 +227,7 @@ const BiometricSetupModal = ({
                 </Text>
               </TouchableOpacity>
 
+              {/* Botón secundario */}
               <Button
                 mode="text"
                 onPress={handleSkip}
@@ -230,6 +237,7 @@ const BiometricSetupModal = ({
                 Ahora no
               </Button>
 
+              {/* Texto informativo */}
               <Paragraph style={styles.footerText}>
                 Puedes activarlo después desde Configuración
               </Paragraph>
@@ -289,7 +297,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     color: '#6B7280',
-    marginTop: 5,
+    marginTop: 8,
+    fontWeight: '600',
   },
   enableButton: {
     width: '100%',

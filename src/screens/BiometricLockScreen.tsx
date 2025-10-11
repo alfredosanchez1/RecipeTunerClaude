@@ -1,10 +1,15 @@
-import React, { useEffect, useState } from 'react';
+/**
+ * BiometricLockScreen.tsx
+ * Pantalla de bloqueo biométrico con animaciones mejoradas
+ * Se muestra al abrir la app cuando el usuario tiene biometría habilitada
+ */
+
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   StyleSheet,
   Animated,
   Easing,
-  Image,
 } from 'react-native';
 import {
   Title,
@@ -14,22 +19,25 @@ import {
   ActivityIndicator,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import BiometricService from '../services/BiometricService';
 import { supabase } from '../services/supabase/client';
 
-/**
- * Pantalla de bloqueo biométrico
- * Se muestra al abrir la app cuando el usuario tiene biometría habilitada
- */
-const BiometricLockScreen = ({ navigation }) => {
+interface BiometricLockScreenProps {
+  navigation: any;
+}
+
+const BiometricLockScreen: React.FC<BiometricLockScreenProps> = ({ navigation }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(true);
   const [biometricType, setBiometricType] = useState('Biometría');
   const [attemptCount, setAttemptCount] = useState(0);
-  const [error, setError] = useState(null);
-  const [pulseAnim] = useState(new Animated.Value(1));
-  const [fadeAnim] = useState(new Animated.Value(0));
+  const [error, setError] = useState<string | null>(null);
+
+  // Animaciones
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const iconScaleAnim = useRef(new Animated.Value(1)).current;
+  const shakeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Animación de entrada
@@ -39,18 +47,18 @@ const BiometricLockScreen = ({ navigation }) => {
       useNativeDriver: true,
     }).start();
 
-    // Animación de pulso
+    // Animación de pulso continua
     Animated.loop(
       Animated.sequence([
         Animated.timing(pulseAnim, {
-          toValue: 1.2,
-          duration: 1000,
+          toValue: 1.15,
+          duration: 1200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(pulseAnim, {
           toValue: 1,
-          duration: 1000,
+          duration: 1200,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
@@ -72,7 +80,7 @@ const BiometricLockScreen = ({ navigation }) => {
         attemptBiometricAuth();
       }, 500);
     } catch (error) {
-      console.error('❌ Error inicializando BiometricLockScreen:', error);
+      console.error('[BiometricLockScreen] Error inicializando:', error);
       setLoading(false);
       setError('Error al inicializar');
     }
@@ -80,7 +88,7 @@ const BiometricLockScreen = ({ navigation }) => {
 
   const attemptBiometricAuth = async () => {
     try {
-      console.log('🔐 Intentando autenticación biométrica...');
+      console.log('[BiometricLockScreen] Solicitando autenticación...');
 
       const authResult = await BiometricService.authenticate(
         `Desbloquear RecipeTuner con ${biometricType}`
@@ -92,65 +100,69 @@ const BiometricLockScreen = ({ navigation }) => {
         handleFailedAuth(authResult.error);
       }
     } catch (error) {
-      console.error('❌ Error en autenticación biométrica:', error);
+      console.error('[BiometricLockScreen] Error en autenticación:', error);
       handleFailedAuth('Error inesperado');
     }
   };
 
   const handleSuccessfulAuth = async () => {
     try {
-      console.log('✅ Autenticación biométrica exitosa');
+      console.log('[BiometricLockScreen] Autenticación exitosa');
       setError(null);
 
-      // Obtener credenciales guardadas
-      const credentials = await BiometricService.getStoredCredentials();
-
-      if (!credentials) {
-        console.error('❌ No se encontraron credenciales guardadas');
-        // Si no hay credenciales, deshabilitar biometría y mostrar login
-        await BiometricService.disableBiometric();
-        // No necesitamos navigate, simplemente desactivamos showBiometricLock
-        // y la app mostrará AuthScreen
-        return;
-      }
+      // Animación de éxito
+      Animated.sequence([
+        Animated.spring(iconScaleAnim, {
+          toValue: 1.3,
+          friction: 3,
+          useNativeDriver: true,
+        }),
+        Animated.spring(iconScaleAnim, {
+          toValue: 1,
+          friction: 3,
+          useNativeDriver: true,
+        }),
+      ]).start();
 
       // Verificar sesión con Supabase
       const { data: { session }, error } = await supabase.auth.getSession();
 
       if (error || !session) {
-        console.error('❌ Sesión inválida o expirada:', error);
-        // Sesión expirada, forzar login completo
+        console.error('[BiometricLockScreen] Sesión inválida o expirada:', error);
         await BiometricService.disableBiometric();
-        await supabase.auth.signOut(); // Forzar sign out
-        // La app detectará el sign out y mostrará AuthScreen
+        await supabase.auth.signOut();
         return;
       }
 
-      // Sesión válida, marcar que biometría fue verificada en esta sesión
-      console.log('✅ Sesión válida, desbloqueando app...');
+      // Marcar sesión como verificada
+      console.log('[BiometricLockScreen] Sesión válida, desbloqueando...');
+      await BiometricService.markSessionAsVerified();
 
-      // Marcar temporalmente que la biometría fue verificada
-      await AsyncStorage.setItem('biometric_verified_session', 'true');
-
-      // Forzar un refresh de la sesión para que la app se re-renderice
-      // Esto hará que el useEffect en App.js se ejecute de nuevo
+      // Refrescar sesión para re-render
       await supabase.auth.refreshSession();
 
-      console.log('✅ Sesión refrescada, app debería mostrar MainNavigator ahora');
-
+      console.log('[BiometricLockScreen] App desbloqueada exitosamente');
     } catch (error) {
-      console.error('❌ Error verificando sesión:', error);
-      // En caso de error, deshabilitar biometría y forzar logout
+      console.error('[BiometricLockScreen] Error verificando sesión:', error);
       await BiometricService.disableBiometric();
       await supabase.auth.signOut();
     }
   };
 
-  const handleFailedAuth = (errorMessage) => {
+  const handleFailedAuth = (errorMessage?: string) => {
     const newAttemptCount = attemptCount + 1;
     setAttemptCount(newAttemptCount);
 
-    console.log(`❌ Intento ${newAttemptCount} de autenticación fallido:`, errorMessage);
+    console.log(`[BiometricLockScreen] Intento ${newAttemptCount} fallido:`, errorMessage);
+
+    // Animación de shake (sacudida) al fallar
+    Animated.sequence([
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: -10, duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeAnim, { toValue: 0, duration: 50, useNativeDriver: true }),
+    ]).start();
 
     // Mensajes personalizados según el tipo de error
     let userFriendlyMessage = '';
@@ -170,8 +182,9 @@ const BiometricLockScreen = ({ navigation }) => {
   };
 
   const handleUsePassword = async () => {
-    console.log('🔐 Usuario eligió usar contraseña');
-    // No deshabilitar biometría, solo ir a login
+    console.log('[BiometricLockScreen] Usuario eligió usar contraseña');
+    // Limpiar verificación de sesión para volver a login
+    await BiometricService.clearSessionVerification();
     navigation.replace('Auth');
   };
 
@@ -181,7 +194,7 @@ const BiometricLockScreen = ({ navigation }) => {
   };
 
   // Determinar ícono según tipo de biometría
-  const getIconName = () => {
+  const getIconName = (): string => {
     if (biometricType === 'Face ID') return 'face-recognition';
     if (biometricType === 'Touch ID') return 'fingerprint';
     return 'shield-lock';
@@ -190,7 +203,8 @@ const BiometricLockScreen = ({ navigation }) => {
   if (loading) {
     return (
       <View style={styles.container}>
-        <ActivityIndicator size="large" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Paragraph style={styles.loadingText}>Verificando {biometricType}...</Paragraph>
       </View>
     );
   }
@@ -207,7 +221,12 @@ const BiometricLockScreen = ({ navigation }) => {
       <Animated.View
         style={[
           styles.biometricIconContainer,
-          { transform: [{ scale: pulseAnim }] }
+          {
+            transform: [
+              { scale: error ? iconScaleAnim : pulseAnim },
+              { translateX: shakeAnim }
+            ]
+          }
         ]}
       >
         <Icon
@@ -236,9 +255,14 @@ const BiometricLockScreen = ({ navigation }) => {
             ) : null}
           </>
         ) : (
-          <Paragraph style={styles.instructionText}>
-            Toca para desbloquear con {biometricType}
-          </Paragraph>
+          <>
+            <Paragraph style={styles.instructionText}>
+              Usa {biometricType} para desbloquear
+            </Paragraph>
+            <Paragraph style={styles.subInstructionText}>
+              Tus datos están protegidos y seguros
+            </Paragraph>
+          </>
         )}
       </View>
 
@@ -248,10 +272,20 @@ const BiometricLockScreen = ({ navigation }) => {
           mode="text"
           onPress={handleUsePassword}
           icon="login"
+          labelStyle={styles.alternativeButtonLabel}
         >
           Usar contraseña
         </Button>
       </View>
+
+      {/* Indicador de intentos */}
+      {attemptCount > 0 && attemptCount < 3 && (
+        <View style={styles.attemptsContainer}>
+          <Paragraph style={styles.attemptsText}>
+            Intento {attemptCount} de 3
+          </Paragraph>
+        </View>
+      )}
     </Animated.View>
   );
 };
@@ -263,6 +297,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#64748b',
   },
   logoContainer: {
     alignItems: 'center',
@@ -281,12 +320,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 40,
     paddingHorizontal: 20,
+    minHeight: 120,
   },
   instructionText: {
-    fontSize: 16,
+    fontSize: 18,
     textAlign: 'center',
-    color: '#4B5563',
-    lineHeight: 24,
+    color: '#1F2937',
+    lineHeight: 26,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  subInstructionText: {
+    fontSize: 14,
+    textAlign: 'center',
+    color: '#64748b',
+    lineHeight: 20,
   },
   errorText: {
     fontSize: 14,
@@ -297,10 +345,27 @@ const styles = StyleSheet.create({
   },
   retryButton: {
     paddingHorizontal: 30,
+    marginTop: 8,
   },
   alternativeContainer: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 60,
+  },
+  alternativeButtonLabel: {
+    fontSize: 15,
+  },
+  attemptsContainer: {
+    position: 'absolute',
+    bottom: 20,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  attemptsText: {
+    fontSize: 12,
+    color: '#EF4444',
+    fontWeight: '600',
   },
 });
 
