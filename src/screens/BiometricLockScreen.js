@@ -152,11 +152,21 @@ const BiometricLockScreen = ({ navigation }) => {
 
     console.log(`❌ Intento ${newAttemptCount} de autenticación fallido:`, errorMessage);
 
-    if (newAttemptCount >= 3) {
-      setError(`${biometricType} falló. Usa tu contraseña para continuar.`);
+    // Mensajes personalizados según el tipo de error
+    let userFriendlyMessage = '';
+
+    if (errorMessage && errorMessage.toLowerCase().includes('cancel')) {
+      userFriendlyMessage = 'Autenticación cancelada. Intenta de nuevo o usa tu contraseña.';
+    } else if (newAttemptCount >= 3) {
+      userFriendlyMessage = `Has intentado ${newAttemptCount} veces sin éxito.\n\n` +
+        `Por seguridad, usa tu contraseña para continuar. Puedes volver a habilitar ${biometricType} desde Configuración.`;
     } else {
-      setError(`${biometricType} falló. Intenta de nuevo.`);
+      const remainingAttempts = 3 - newAttemptCount;
+      userFriendlyMessage = `${biometricType} no reconocido. Tienes ${remainingAttempts} intento${remainingAttempts > 1 ? 's' : ''} más.\n\n` +
+        'Asegúrate de estar en buena iluminación y que tu rostro esté completamente visible.';
     }
+
+    setError(userFriendlyMessage);
   };
 
   const handleUsePassword = async () => {

@@ -14,8 +14,8 @@ import BiometricService from '../../services/BiometricService';
 
 const SettingsScreen = () => {
   const navigation = useNavigation();
-  const { user, setUser, resetUserData } = useUser();
-  const { signOut } = useAuth();
+  const { user: userProfile, setUser, resetUserData } = useUser();
+  const { user: authUser, signOut } = useAuth();
   const { testDatabase, isInitialized } = useRealmDatabase();
 
   // Estados para modales
@@ -414,25 +414,36 @@ const SettingsScreen = () => {
   const handleBiometricToggle = async (value) => {
     try {
       if (value) {
-        // Habilitar biometría
-        const { data: { session }, error } = await supabase.auth.getSession();
+        // Habilitar biometría - Pedir contraseña al usuario
+        Alert.prompt(
+          'Confirma tu contraseña',
+          'Para habilitar Face ID, por favor ingresa tu contraseña',
+          [
+            { text: 'Cancelar', style: 'cancel' },
+            {
+              text: 'Confirmar',
+              onPress: async (password) => {
+                if (!password) {
+                  Alert.alert('Error', 'Debes ingresar tu contraseña');
+                  return;
+                }
 
-        if (error || !session) {
-          Alert.alert('Error', 'No se pudo obtener la sesión actual. Intenta cerrar sesión y volver a iniciar.');
-          return;
-        }
+                const result = await BiometricService.enableBiometric(authUser.email, password);
 
-        const result = await BiometricService.enableBiometric(user.email, session.access_token);
-
-        if (result.success) {
-          setBiometricEnabled(true);
-          Alert.alert(
-            '✅ Biometría Habilitada',
-            `Ahora puedes usar ${biometricType} para acceder rápidamente a RecipeTuner.`
-          );
-        } else {
-          Alert.alert('Error', result.error || 'No se pudo habilitar la biometría');
-        }
+                if (result.success) {
+                  setBiometricEnabled(true);
+                  Alert.alert(
+                    '✅ Biometría Habilitada',
+                    `Ahora puedes usar ${biometricType} para acceder rápidamente a RecipeTuner.`
+                  );
+                } else {
+                  Alert.alert('Error', result.error || 'No se pudo habilitar la biometría');
+                }
+              }
+            }
+          ],
+          'secure-text'
+        );
       } else {
         // Deshabilitar biometría
         Alert.alert(
@@ -520,23 +531,6 @@ const SettingsScreen = () => {
       ]
     },
     {
-      title: 'Desarrollo',
-      items: [
-        {
-          label: '🔍 Debug Logs',
-          onPress: () => navigation.navigate('DebugLogs'),
-          icon: 'bug',
-          description: 'Ver logs de errores y eventos de la aplicación'
-        },
-        {
-          label: '🧹 Limpiar Sesión Persistente',
-          onPress: handleClearAsyncStorage,
-          icon: 'broom',
-          description: 'Elimina completamente la sesión guardada (úsalo si hay problemas de logout)'
-        }
-      ]
-    },
-    {
       title: 'Sesión',
       items: [
         {
@@ -557,6 +551,30 @@ const SettingsScreen = () => {
   return (
     <>
       <ScrollView style={globalStyles.container}>
+        {/* Banner de Face ID Habilitada */}
+        {biometricAvailable && biometricEnabled && (
+          <Card style={styles.biometricBanner}>
+            <Card.Content style={styles.biometricBannerContent}>
+              <View style={styles.biometricIcon}>
+                <Text style={styles.biometricIconText}>
+                  {biometricType === 'Face ID' ? '🔐' : '👆'}
+                </Text>
+              </View>
+              <View style={styles.biometricInfo}>
+                <Text style={styles.biometricTitle}>
+                  {biometricType} Activado
+                </Text>
+                <Text style={styles.biometricDescription}>
+                  Acceso rápido y seguro habilitado
+                </Text>
+              </View>
+              <View style={styles.biometricCheck}>
+                <Text style={styles.biometricCheckIcon}>✓</Text>
+              </View>
+            </Card.Content>
+          </Card>
+        )}
+
         {settingSections.map((section, index) => (
           <SettingsSection key={index} title={section.title} items={section.items} />
         ))}
@@ -698,6 +716,53 @@ const SettingsScreen = () => {
 };
 
 const styles = StyleSheet.create({
+  // Estilos del banner de Face ID
+  biometricBanner: {
+    margin: 15,
+    marginBottom: 10,
+    backgroundColor: '#E8F5E9',
+    borderLeftWidth: 4,
+    borderLeftColor: '#4CAF50',
+    elevation: 2,
+  },
+  biometricBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  biometricIcon: {
+    marginRight: 15,
+  },
+  biometricIconText: {
+    fontSize: 32,
+  },
+  biometricInfo: {
+    flex: 1,
+  },
+  biometricTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#2E7D32',
+    marginBottom: 2,
+  },
+  biometricDescription: {
+    fontSize: 13,
+    color: '#558B2F',
+  },
+  biometricCheck: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#4CAF50',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  biometricCheckIcon: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  // Estilos de modales
   modalContainer: {
     flex: 1,
     justifyContent: 'center',

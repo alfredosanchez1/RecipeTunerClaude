@@ -158,7 +158,7 @@ class BiometricService {
    * @param {string} sessionToken - Token de sesión de Supabase
    * @returns {Promise<{success: boolean, error?: string}>}
    */
-  async enableBiometric(email, sessionToken) {
+  async enableBiometric(email, password) {
     try {
       // Primero autenticar para confirmar
       const biometricName = await this.getBiometricTypeName();
@@ -173,10 +173,10 @@ class BiometricService {
         };
       }
 
-      // Guardar credenciales de forma segura
+      // Guardar credenciales de forma segura (email y contraseña)
       await SecureStore.setItemAsync(BIOMETRIC_ENABLED_KEY, 'true');
       await SecureStore.setItemAsync(BIOMETRIC_EMAIL_KEY, email);
-      await SecureStore.setItemAsync(BIOMETRIC_SESSION_KEY, sessionToken);
+      await SecureStore.setItemAsync(BIOMETRIC_SESSION_KEY, password); // Guardar contraseña
 
       console.log('✅ Biometría habilitada exitosamente para:', email);
 
@@ -214,7 +214,7 @@ class BiometricService {
 
   /**
    * Obtiene las credenciales guardadas (si existen y están habilitadas)
-   * @returns {Promise<{email: string, sessionToken: string} | null>}
+   * @returns {Promise<{email: string, password: string} | null>}
    */
   async getStoredCredentials() {
     try {
@@ -225,9 +225,9 @@ class BiometricService {
       }
 
       const email = await SecureStore.getItemAsync(BIOMETRIC_EMAIL_KEY);
-      const sessionToken = await SecureStore.getItemAsync(BIOMETRIC_SESSION_KEY);
+      const password = await SecureStore.getItemAsync(BIOMETRIC_SESSION_KEY);
 
-      if (!email || !sessionToken) {
+      if (!email || !password) {
         console.log('⚠️ Credenciales incompletas en SecureStore');
         // Limpiar si están incompletas
         await this.disableBiometric();
@@ -235,7 +235,7 @@ class BiometricService {
       }
 
       console.log('✅ Credenciales recuperadas de SecureStore');
-      return { email, sessionToken };
+      return { email, password };
     } catch (error) {
       console.error('❌ Error obteniendo credenciales guardadas:', error);
       return null;

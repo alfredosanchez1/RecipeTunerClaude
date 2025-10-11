@@ -5,11 +5,11 @@ import * as Crypto from 'expo-crypto';
 if (!global.crypto) {
   global.crypto = Crypto;
 }
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as PaperProvider } from 'react-native-paper';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text, Alert } from 'react-native';
+import { View, ActivityIndicator, Text, Animated } from 'react-native';
 import * as Linking from 'expo-linking';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -90,6 +90,10 @@ const AppContent = () => {
   const [showBiometricLock, setShowBiometricLock] = useState(false);
   const [biometricCheckComplete, setBiometricCheckComplete] = useState(false);
   const [biometricVerified, setBiometricVerified] = useState(false);
+
+  // Animación de transición
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Verificar si debe mostrar biometric lock al iniciar
   useEffect(() => {
@@ -245,6 +249,42 @@ const AppContent = () => {
     return () => subscription.remove();
   }, []);
 
+  // Animar transición entre Auth y Main
+  useEffect(() => {
+    // Solo animar si no está en loading y biometricCheck está completo
+    if (!loading && biometricCheckComplete) {
+      const shouldShowAuth = !isAuthenticated || isPasswordRecovery;
+
+      // Fade out y slide up
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: -20,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // Después del fade out, fade in con la nueva pantalla
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      });
+    }
+  }, [isAuthenticated, loading, biometricCheckComplete, isPasswordRecovery]);
+
   // Debug logging
   console.log('='.repeat(60));
   console.log('🔍 APP DEBUG - Estado actual:');
@@ -257,18 +297,6 @@ const AppContent = () => {
   console.log('  - session exists:', !!session);
   console.log('  - isPasswordRecovery:', isPasswordRecovery);
   console.log('='.repeat(60));
-
-  // DEBUG TEMPORAL: Alert para ver estado
-  useEffect(() => {
-    if (!loading && biometricCheckComplete && !showBiometricLock) {
-      const shouldShowAuth = !isAuthenticated || isPasswordRecovery;
-      Alert.alert(
-        'DEBUG - Estado de Navegación',
-        `isAuth: ${isAuthenticated}\nloading: ${loading}\nshowLock: ${showBiometricLock}\nshowAuth: ${shouldShowAuth}\n\nMostrando: ${shouldShowAuth ? 'AUTH' : 'MAIN'}`,
-        [{ text: 'OK' }]
-      );
-    }
-  }, [isAuthenticated, loading, biometricCheckComplete, showBiometricLock, isPasswordRecovery]);
 
   if (loading || !biometricCheckComplete) {
     console.log('⏳ APP - Showing loading screen');
@@ -305,7 +333,15 @@ const AppContent = () => {
   return (
     <NavigationContainer linking={linking}>
       <StatusBar style="auto" />
-      {shouldShowAuth ? <AuthNavigator isPasswordRecovery={isPasswordRecovery} recoveryUrl={recoveryUrl} /> : <MainNavigator />}
+      <Animated.View
+        style={{
+          flex: 1,
+          opacity: fadeAnim,
+          transform: [{ translateY: slideAnim }],
+        }}
+      >
+        {shouldShowAuth ? <AuthNavigator isPasswordRecovery={isPasswordRecovery} recoveryUrl={recoveryUrl} /> : <MainNavigator />}
+      </Animated.View>
     </NavigationContainer>
   );
 };

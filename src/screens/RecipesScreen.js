@@ -216,13 +216,6 @@ const RecipesScreen = ({ navigation, route }) => {
 
     return (
     <View style={styles.header}>
-      {/* INDICADOR DEBUG TEMPORAL */}
-      <View style={{backgroundColor: 'yellow', padding: 10, marginBottom: 10}}>
-        <Text style={{color: 'black', fontWeight: 'bold', textAlign: 'center'}}>
-          🚨 DEBUG: {debugText} - Mostrando: {displayRecipes.length} de {recipes.length} recetas
-        </Text>
-      </View>
-
       {/* Back Button */}
       <View style={styles.backButtonContainer}>
         <Button

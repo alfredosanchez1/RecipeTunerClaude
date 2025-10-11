@@ -4,6 +4,7 @@ import {
   StyleSheet,
   Animated,
   Easing,
+  TouchableOpacity,
 } from 'react-native';
 import {
   Portal,
@@ -13,8 +14,11 @@ import {
   Paragraph,
   Button,
   useTheme,
+  Checkbox,
+  Text,
 } from 'react-native-paper';
 import { MaterialCommunityIcons as Icon } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import BiometricService from '../services/BiometricService';
 
 /**
@@ -26,11 +30,12 @@ const BiometricSetupModal = ({
   onClose,
   onEnable,
   userEmail,
-  sessionToken,
+  password,
 }) => {
   const theme = useTheme();
   const [loading, setLoading] = useState(false);
   const [biometricType, setBiometricType] = useState('Biometría');
+  const [dontShowAgain, setDontShowAgain] = useState(false);
   const [scaleAnim] = useState(new Animated.Value(0));
   const [pulseAnim] = useState(new Animated.Value(1));
 
@@ -78,7 +83,7 @@ const BiometricSetupModal = ({
     setLoading(true);
 
     try {
-      const result = await BiometricService.enableBiometric(userEmail, sessionToken);
+      const result = await BiometricService.enableBiometric(userEmail, password);
 
       if (result.success) {
         console.log('✅ Biometría habilitada desde modal');
@@ -97,8 +102,19 @@ const BiometricSetupModal = ({
     }
   };
 
-  const handleSkip = () => {
+  const handleSkip = async () => {
     console.log('⏭️ Usuario omitió configuración de biometría');
+
+    // Si el usuario marcó "No volver a mostrar", guardar preferencia
+    if (dontShowAgain) {
+      try {
+        await AsyncStorage.setItem('biometric_setup_dismissed', 'true');
+        console.log('✅ Preferencia guardada: No volver a mostrar modal de Face ID');
+      } catch (error) {
+        console.error('❌ Error guardando preferencia:', error);
+      }
+    }
+
     onClose();
   };
 
@@ -188,6 +204,23 @@ const BiometricSetupModal = ({
                 Habilitar {biometricType}
               </Button>
 
+              {/* Checkbox "No volver a mostrar" */}
+              <TouchableOpacity
+                style={styles.checkboxContainer}
+                onPress={() => setDontShowAgain(!dontShowAgain)}
+                activeOpacity={0.7}
+                disabled={loading}
+              >
+                <Checkbox
+                  status={dontShowAgain ? 'checked' : 'unchecked'}
+                  onPress={() => setDontShowAgain(!dontShowAgain)}
+                  disabled={loading}
+                />
+                <Text style={styles.checkboxLabel}>
+                  No volver a mostrar este mensaje
+                </Text>
+              </TouchableOpacity>
+
               <Button
                 mode="text"
                 onPress={handleSkip}
@@ -261,7 +294,19 @@ const styles = StyleSheet.create({
   enableButton: {
     width: '100%',
     paddingVertical: 8,
+    marginBottom: 15,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 10,
+    paddingHorizontal: 10,
+  },
+  checkboxLabel: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginLeft: 8,
   },
   skipButton: {
     marginBottom: 10,

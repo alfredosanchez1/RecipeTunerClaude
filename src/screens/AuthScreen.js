@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -38,6 +38,8 @@ const AuthScreen = ({ navigation }) => {
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [showBiometricSetup, setShowBiometricSetup] = useState(false);
   const [sessionData, setSessionData] = useState(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -45,6 +47,46 @@ const AuthScreen = ({ navigation }) => {
     firstName: '',
     lastName: ''
   });
+
+  // Verificar disponibilidad de biometría al cargar
+  useEffect(() => {
+    const checkBiometric = async () => {
+      try {
+        const available = await BiometricService.isAvailable();
+        const enabled = await BiometricService.isBiometricEnabled();
+        setBiometricAvailable(available);
+        setBiometricEnabled(enabled);
+        console.log('🔐 AUTH SCREEN - Biometría disponible:', available, 'Habilitada:', enabled);
+      } catch (error) {
+        console.error('❌ Error verificando biometría:', error);
+      }
+    };
+    checkBiometric();
+  }, []);
+
+  // DEBUG: Función temporal para limpiar flags de Face ID
+  const clearBiometricFlags = async () => {
+    try {
+      // Obtener todos los keys de AsyncStorage
+      const keys = await AsyncStorage.getAllKeys();
+      const biometricKeys = keys.filter(key =>
+        key.includes('biometric_dismissed_') || key === 'biometric_verified_session'
+      );
+      await AsyncStorage.multiRemove(biometricKeys);
+
+      // Deshabilitar Face ID
+      await BiometricService.disableBiometric();
+
+      Alert.alert('✅ Limpieza completa', 'Todos los flags de Face ID han sido eliminados. Ahora haz login para ver el modal.');
+
+      // Recargar estado
+      const enabled = await BiometricService.isBiometricEnabled();
+      setBiometricEnabled(enabled);
+    } catch (error) {
+      console.error('❌ Error limpiando flags:', error);
+      Alert.alert('Error', 'No se pudieron limpiar los flags');
+    }
+  };
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -117,16 +159,9 @@ const AuthScreen = ({ navigation }) => {
       console.log('🔐 Marcando sesión como verificada después de login manual');
       await AsyncStorage.setItem('biometric_verified_session', 'true');
 
-      // DEBUG TEMPORAL: Verificar que el flag se guardó
-      const verifiedCheck = await AsyncStorage.getItem('biometric_verified_session');
-      Alert.alert(
-        'DEBUG - Login Completado',
-        `Usuario: ${data.user?.email}\nVerified flag: ${verifiedCheck}\n\nAhora debería navegar a MainNavigator`,
-        [{ text: 'OK' }]
-      );
-
       // Verificar si se puede mostrar el modal de biometría
-      await checkAndShowBiometricSetup(data.user, data.session);
+      // Pasamos también la contraseña para guardarla
+      await checkAndShowBiometricSetup(data.user, data.session, formData.password);
 
       console.log('✅ Login completado, la app debería navegar a MainNavigator');
 
@@ -138,7 +173,7 @@ const AuthScreen = ({ navigation }) => {
     }
   };
 
-  const checkAndShowBiometricSetup = async (user, session) => {
+  const checkAndShowBiometricSetup = async (user, session, password) => {
     try {
       // Verificar si biometría está disponible en el dispositivo
       const available = await BiometricService.isAvailable();
@@ -155,16 +190,17 @@ const AuthScreen = ({ navigation }) => {
       }
 
       // Verificar si el usuario ya rechazó esto antes (usando AsyncStorage)
-      const biometricDismissed = await AsyncStorage.getItem(`biometric_dismissed_${user.email}`);
+      const biometricDismissed = await AsyncStorage.getItem('biometric_setup_dismissed');
       if (biometricDismissed === 'true') {
-        console.log('⚠️ Usuario ya rechazó la configuración de biometría');
+        console.log('⚠️ Usuario eligió no volver a mostrar el modal de biometría');
         return;
       }
 
-      // Guardar datos de sesión y mostrar modal
+      // Guardar datos de sesión y contraseña para configurar biometría
       setSessionData({
         email: user.email,
-        sessionToken: session.access_token
+        sessionToken: session.access_token,
+        password: password // Guardar contraseña para Face ID
       });
       setShowBiometricSetup(true);
 
@@ -186,6 +222,51 @@ const AuthScreen = ({ navigation }) => {
     console.log('✅ Biometría habilitada exitosamente');
     setShowBiometricSetup(false);
     setSessionData(null);
+  };
+
+  const handleBiometricLogin = async () => {
+    try {
+      setLoading(true);
+      console.log('🔐 Intentando login con biometría...');
+
+      const result = await BiometricService.authenticate('Inicia sesión con Face ID');
+
+      if (result.success) {
+        console.log('✅ Autenticación biométrica exitosa');
+
+        // Obtener credenciales guardadas
+        const credentials = await BiometricService.getStoredCredentials();
+
+        if (!credentials) {
+          Alert.alert('Error', 'No se encontraron credenciales guardadas');
+          return;
+        }
+
+        // Hacer login con las credenciales
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
+
+        if (error) {
+          console.error('❌ Error en login con credenciales guardadas:', error);
+          Alert.alert('Error', 'No se pudo iniciar sesión. Por favor usa tu contraseña.');
+          return;
+        }
+
+        console.log('✅ Login con biometría exitoso:', data.user?.email);
+
+        // Marcar sesión como verificada
+        await AsyncStorage.setItem('biometric_verified_session', 'true');
+      } else {
+        console.log('❌ Autenticación biométrica fallida:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Error en login biométrico:', error);
+      Alert.alert('Error', 'Ocurrió un error al usar Face ID');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleRegister = async () => {
@@ -532,6 +613,19 @@ const AuthScreen = ({ navigation }) => {
               }
             </Button>
 
+            {/* Face ID Button - Solo mostrar en login si está habilitado */}
+            {isLogin && biometricEnabled && (
+              <Button
+                mode="outlined"
+                onPress={handleBiometricLogin}
+                style={[styles.submitButton, { marginTop: 12 }]}
+                disabled={loading}
+                icon="face-recognition"
+              >
+                Usar Face ID
+              </Button>
+            )}
+
             <Divider style={styles.divider} />
 
             {/* Toggle Mode */}
@@ -550,6 +644,18 @@ const AuthScreen = ({ navigation }) => {
                 {isLogin ? 'Crear Cuenta' : 'Iniciar Sesión'}
               </Button>
             </View>
+
+            {/* DEBUG: Botón temporal para limpiar Face ID */}
+            {isLogin && __DEV__ && (
+              <Button
+                mode="text"
+                onPress={clearBiometricFlags}
+                style={{ marginTop: 8 }}
+                textColor="#FF6B6B"
+              >
+                🔧 Limpiar Face ID (Debug)
+              </Button>
+            )}
           </Card.Content>
         </Card>
 
@@ -644,7 +750,7 @@ const AuthScreen = ({ navigation }) => {
             onClose={handleBiometricSetupClose}
             onEnable={handleBiometricEnabled}
             userEmail={sessionData.email}
-            sessionToken={sessionData.sessionToken}
+            password={sessionData.password}
           />
         )}
       </ScrollView>

@@ -91,6 +91,28 @@ export function RecipeProvider({ children }) {
     initializeDatabase();
   }, [isAuthenticated, authUser]);
 
+  // Helper function to map Supabase snake_case to app camelCase
+  const mapSupabaseRecipe = (sbRecipe) => {
+    return {
+      ...sbRecipe,
+      // Map critical snake_case fields to camelCase
+      isAdapted: sbRecipe.is_adapted || false,
+      isFavorite: sbRecipe.is_favorite || false,
+      prepTime: sbRecipe.prep_time,
+      cookTime: sbRecipe.cook_time,
+      imageUrl: sbRecipe.image_url,
+      createdAt: sbRecipe.created_at,
+      updatedAt: sbRecipe.updated_at,
+      originalRecipeId: sbRecipe.original_recipe_id,
+      userComments: sbRecipe.user_comments,
+      userPreferences: sbRecipe.user_preferences,
+      adaptationSummary: sbRecipe.adaptation_summary,
+      adaptedAt: sbRecipe.adapted_at,
+      shoppingNotes: sbRecipe.shopping_notes,
+      alternativeCookingMethods: sbRecipe.alternative_cooking_methods
+    };
+  };
+
   const loadRecipes = async () => {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
@@ -110,8 +132,9 @@ export function RecipeProvider({ children }) {
         if (error) {
           console.warn('⚠️ RECIPE CONTEXT - Error cargando desde Supabase (continuando offline):', error);
         } else {
-          supabaseRecipes = data || [];
-          console.log(`📊 RECIPE CONTEXT - ${supabaseRecipes.length} recetas desde Supabase`);
+          // Map snake_case to camelCase for each recipe
+          supabaseRecipes = (data || []).map(mapSupabaseRecipe);
+          console.log(`📊 RECIPE CONTEXT - ${supabaseRecipes.length} recetas desde Supabase (mapeadas a camelCase)`);
         }
       } catch (error) {
         console.warn('⚠️ RECIPE CONTEXT - Error conectando a Supabase (continuando offline):', error);
